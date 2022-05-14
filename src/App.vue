@@ -1,8 +1,13 @@
 <script setup>
-import { RouterView } from 'vue-router'
+import { RouterView, RouterLink } from 'vue-router'
 </script>
 
 <template>
+  <h1>
+    <RouterLink :to="{ name: 'home' }">
+      League of Legends Visualization
+    </RouterLink>
+  </h1>
   <RouterView />
 </template>
 

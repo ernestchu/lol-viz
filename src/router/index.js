@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import MatchesView from '../views/MatchesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,6 +10,15 @@ const router = createRouter({
       name: 'home',
       component: HomeView
     },
+    {
+      path: '/matches/:summonerId',
+      name: 'matches',
+      component: MatchesView
+    },
+    {
+      path: '/matches',
+      redirect: { name: 'home' }
+    }
     // {
     //   path: '/about',
     //   name: 'about',

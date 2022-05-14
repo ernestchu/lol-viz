@@ -1,53 +1,58 @@
 <script setup>
 import { ref, reactive } from 'vue'
+import { RouterLink } from 'vue-router'
 
-const apiToken = ref(import.meta.env.VITE_RIOT_API_KEY)
-const testData = reactive({})
+const challengerLeague = reactive({})
+const authFailed = ref(false)
 
+const apiToken = import.meta.env.VITE_RIOT_API_KEY
 const baseURL = 'https://na1.api.riotgames.com'
 const targetURI = '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5'
 
-function testFetch () {
-  fetch(`${baseURL}${targetURI}?api_key=${apiToken.value}`)
+fetch(`${baseURL}${targetURI}?api_key=${apiToken}`)
   .then(res => res.json())
   .then(data => {
-    Object.assign(testData, data)
-    testData.entries.forEach(entry => {
+    Object.assign(challengerLeague, data)
+    challengerLeague.entries.forEach(entry => {
       entry.show = false
     })
   })
-}
+  .catch(() => {
+    authFailed.value = true
+  })
 </script>
 
 <template>
-<h2>This page tests some Riot APIs</h2>
-<label for="api-token">Riot API Token: </label>
-<input type="password" v-model="apiToken" id="api-token">
-<button @click="testFetch">fetch</button> <br />
-<a href="https://developer.riotgames.com" target="_blank">Regenerate token</a>
-<h3>Fetched data</h3>
-<ul v-if="testData">
-  <li v-for="(v, k) in testData">
-    <ul v-if="k === 'entries'">
-      <li v-for="entry in v">
-        <span
-          class="summoner-name"
-          @click="entry.show = !entry.show"
-        >
-          {{ entry.summonerName }}
-        </span>
-        <ul v-if="entry.show">
-          <template v-for="(entryV, entryK) in entry">
-            <li v-if="entryK != 'show'">
-              {{ entryK }}: {{ entryV }}
-            </li>
-          </template>
-        </ul>
-      </li>
-    </ul>
-    <template v-else>{{ k }}: {{ v }}</template>
-  </li>
-</ul>
+  <template v-if="authFailed">
+  <h2>Invalid or expired Riot API Token!</h2>
+  Follow the <a href="https://github.com/ernestchu/lol-vis#setup-for-riot-api" target="_blank">instruction</a> to setup a valid token.
+  </template>
+
+  <ul v-if="challengerLeague">
+    <li v-for="(value, key) in challengerLeague">
+      <ul v-if="key === 'entries'">
+        <li v-for="entry in value">
+          <span
+            class="summoner-name"
+            @click="entry.show = !entry.show"
+          >
+            {{ entry.summonerName }}
+          </span>
+          <ul v-if="entry.show">
+            <RouterLink :to="{ name: 'matches', params: { summonerId: entry.summonerId } }">
+              View matches
+            </RouterLink>
+            <template v-for="(entryValue, entryKey) in entry">
+              <li v-if="entryKey != 'show'">
+                {{ entryKey }}: {{ entryValue }}
+              </li>
+            </template>
+          </ul>
+        </li>
+      </ul>
+      <template v-else>{{ key }}: {{ value }}</template>
+    </li>
+  </ul>
 </template>
 
 <style scoped>
