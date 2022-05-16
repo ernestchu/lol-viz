@@ -31,9 +31,10 @@ fetch(`${baseURL}${summonersURI}/${summonerId}?api_key=${apiToken}`)
   })
 
 const matchStats = reactive({})
+const nMatches = ref(1)
 function fetchMatchStats () {
   // matches.value.forEach(match => {
-  matches.value.slice(0, 1).forEach(match => { // use a subarray to develop to prevent reaching the limit.
+  matches.value.slice(0, nMatches.value).forEach(match => { // use a subarray to develop to prevent reaching the limit.
     fetch(`${baseURLBroad}${matchStatsURI}/${match}?api_key=${apiToken}`)
       .then(res => res.json())
       .then(data => {
@@ -61,8 +62,9 @@ function fetchMatchStats () {
 
   <template v-if="matches.length">
     Summoner: {{ summonerName }} <br />
+    <input v-model="nMatches" type="range" min="1" max="20">{{ nMatches }} match(es) per fetch<br />
     <button @click="fetchMatchStats">Fetch match stats</button>
-    (will sent 20 requests, note the rate limit of 20 req/sec, 100 req/min)
+    (will sent up to 20 requests, note the rate limit of 20 req/sec, 100 req/min)
     <h3>Matches</h3>
     <ul>
       <li v-for="match in matches">
