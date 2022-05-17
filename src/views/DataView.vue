@@ -9,10 +9,7 @@ const dataURI = ref(useRoute().params.dataURI)
 const router = useRouter()
 
 function fetchWithDataURI () {
-  fetch(new URL(
-    `../assets/sampleData/${dataURI.value}.json`,
-    import.meta.url
-  ).href)
+  fetch(`${import.meta.env.BASE_URL}sample-data/${dataURI.value}.json`)
     .then(res => res.json())
     .then(json => data.value = json)
     .catch(() => fileNotFound.value = true)
