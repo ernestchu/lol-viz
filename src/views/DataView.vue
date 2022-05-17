@@ -14,7 +14,7 @@ fetch(dataURL)
 
 const router = useRouter()
 function reloadWithDataURI () {
-  window.location.href = `/data/${dataURI.value}` 
+  window.location.href = `/lol-vis/data/${dataURI.value}` 
 }
 </script>
 
