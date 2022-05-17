@@ -10,7 +10,7 @@ yarn
 
 Sign up and enroll in [Riot developer program](https://developer.riotgames.com/). Generate your own private API key and save it to `.env.local` in the project's root directory.
 ```sh
-echo VITE_RIOT_API_KEY=(paste your API key here) > .env
+echo VITE_RIOT_API_KEY=(paste your API key here) > .env.local
 ```
 
 ### Compile and Hot-Reload for Development
