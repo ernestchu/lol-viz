@@ -2,7 +2,7 @@ language: node_js
 node_js:
   - lts/*
 script:
-  - yarn run build
+  - yarn run build-github
 deploy:
   provider: pages
   skip_cleanup: true
@@ -12,4 +12,4 @@ deploy:
   github_token: $GITHUB_TOKEN
   keep_history: true
   on:
-    branch: gh-pages
+    branch: main
