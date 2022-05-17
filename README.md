@@ -1,7 +1,7 @@
 # League of Legends Visualization
 
 ## Project Setup
-
+Install [yarn](https://yarnpkg.com)
 ```sh
 yarn
 ```
