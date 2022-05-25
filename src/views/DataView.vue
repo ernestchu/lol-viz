@@ -8,15 +8,15 @@ const data = ref()
 const dataURI = ref(useRoute().params.dataURI)
 const router = useRouter()
 
-function fetchWithDataURI () {
+function fetchWithDataURI() {
   fetch(`${import.meta.env.BASE_URL}sample-data/${dataURI.value}.json`)
     .then(res => res.json())
-    .then(json => data.value = json)
-    .catch(() => fileNotFound.value = true)
+    .then(json => (data.value = json))
+    .catch(() => (fileNotFound.value = true))
 }
 fetchWithDataURI()
 
-function reloadWithDataURI () {
+function reloadWithDataURI() {
   router.push({ params: { dataURI: dataURI.value } })
   fileNotFound.value = false
   fetchWithDataURI()
@@ -28,7 +28,7 @@ function reloadWithDataURI () {
   <template v-if="fileNotFound">
     <h3>File not found, please try another file name:</h3>
     <form @submit.prevent="reloadWithDataURI">
-      <input type="text" v-model="dataURI">
+      <input type="text" v-model="dataURI" />
       <button>Try again</button>
     </form>
   </template>

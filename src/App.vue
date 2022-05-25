@@ -12,4 +12,7 @@ import { RouterView, RouterLink } from 'vue-router'
 </template>
 
 <style>
+h1 {
+  margin-top: 0;
+}
 </style>

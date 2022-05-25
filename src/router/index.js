@@ -36,6 +36,16 @@ const router = createRouter({
     {
       path: '/data',
       redirect: { name: 'home' }
+    },
+    {
+      path: '/three-test',
+      name: 'three-test',
+      component: () => import('../views/Tests/ThreeTestView.vue')
+    },
+    {
+      path: '/css-test',
+      name: 'css-test',
+      component: () => import('../views/Tests/CSSTestView.vue')
     }
   ]
 })

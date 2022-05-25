@@ -2,7 +2,6 @@ language: node_js
 node_js:
   - lts/*
 script:
-  - echo VITE_RIOT_API_KEY=$RIOT_TOKEN > .env.local
   - yarn run build-pages
   - mv dist/index.html dist/404.html
 deploy:
