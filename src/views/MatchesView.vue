@@ -100,7 +100,7 @@ function fetchMatchStats() {
 
 <style scoped>
 .match-no {
-  color: blue;
+  color: #B3944C;
   cursor: pointer;
 }
 </style>

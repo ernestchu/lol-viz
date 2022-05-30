@@ -64,7 +64,7 @@ fetch(proxyHost + targetURI)
 
 <style scoped>
 .summoner-name {
-  color: blue;
+  color: #B3944C;
   cursor: pointer;
 }
 </style>

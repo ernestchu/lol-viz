@@ -7,6 +7,7 @@ const fileNotFound = ref(false)
 const data = ref()
 const dataURI = ref(useRoute().params.dataURI)
 const router = useRouter()
+const expandDepth = ref(1)
 
 function fetchWithDataURI() {
   fetch(`${import.meta.env.BASE_URL}sample-data/${dataURI.value}.json`)
@@ -33,5 +34,8 @@ function reloadWithDataURI() {
     </form>
   </template>
 
-  <JsonViewer v-if="data" :value="data" />
+  <template v-else>
+  <input type="range" v-model="expandDepth" min=1 max=7> Expand depth: {{ expandDepth }}
+  <JsonViewer v-if="data" :value="data" :expand-depth=expandDepth :key="expandDepth" />
+  </template>
 </template>
