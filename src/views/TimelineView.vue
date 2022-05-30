@@ -21,9 +21,9 @@ const matchId = useRoute().params.matchId
 fetch(ddragonVersions)
   .then(res => res.json())
   .then(data => {
-    ddragonSRMAP.value = `http://ddragon.leagueoflegends.com/cdn/${data[0]}/img/map/map11.png`
-    ddragonChampSquarePrefix.value = `http://ddragon.leagueoflegends.com/cdn/${data[0]}/img/champion`
-    const ddragonChampions = `http://ddragon.leagueoflegends.com/cdn/${data[0]}/data/en_US/champion.json`
+    ddragonSRMAP.value = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/map/map11.png`
+    ddragonChampSquarePrefix.value = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/champion`
+    const ddragonChampions = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/data/en_US/champion.json`
 
     const proxyHost = import.meta.env.VITE_PROXY_HOST
     const matchStatsURI = `/lol/match/v5/matches/${matchId}`
