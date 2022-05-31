@@ -8,15 +8,23 @@ const ddragonChampSquarePrefix = ref('')
 const ddragonChampSquare = id => ddragonChampSquarePrefix.value + `/${id}.png`
 const champions = {}
 const ddragonVersions = 'https://ddragon.leagueoflegends.com/api/versions.json'
-const positionNormFactor = 1 / 17000
+const positionNormFactor = 1 / 17500
 const match = reactive({})
 const levels = reactive([
   { data: [] },
   { data: [] },
   { data: [] }
 ])
+const selectedIndicators = reactive({
+  show: [ false, false ],
+  styles: []
+})
 const authFailed = ref(false)
 const matchId = useRoute().params.matchId
+const windowInnerWidth = ref(window.innerWidth)
+window.addEventListener('resize', () => {
+  windowInnerWidth.value = window.innerWidth
+})
 
 fetch(ddragonVersions)
   .then(res => res.json())
@@ -31,17 +39,18 @@ fetch(ddragonVersions)
 
     Promise.all([
       fetch(ddragonChampions),
-      fetch(`${proxyHost}${matchStatsURI}`),
-      /* fetch('/sample-data/NA1_4309929537.json'), */
-      fetch(`${proxyHost}${timelineURI}`)
-      /* fetch(`/sample-data/timeline.json`) */
+      /* fetch(`${proxyHost}${matchStatsURI}`), */
+      fetch('/sample-data/NA1_4309929537.json'),
+      /* fetch(`${proxyHost}${timelineURI}`) */
+      fetch(`/sample-data/timeline.json`)
     ]).then(res => Promise.all([ res[0].json(), res[1].json(), res[2].json() ]))
       .then(dataArray => {
         /* ########### champion info ########## */
         let { data } = dataArray[0]
         /* keep keys/values we need */
         for (const [key, value] of Object.entries(data)) {
-          champions[key] = [ 'id', 'key', 'name' ].reduce((prev, curr) => {
+          /* dont use the championsId as key, fuck Fiddlesticks */
+          champions[data[key]['key']] = [ 'id', 'key', 'name' ].reduce((prev, curr) => {
             prev[curr] = data[key][curr]
             return prev
           }, {})
@@ -55,7 +64,7 @@ fetch(ddragonVersions)
           'kills',
           'deaths',
           'assists',
-          'championName',
+          'championId',
           'teamId',
           'summonerName',
           'puuid'
@@ -68,8 +77,8 @@ fetch(ddragonVersions)
           }, {})
         )
         match.participants.forEach(participant => {
-          participant.champion = champions[participant.championName]
-          delete participant.championName
+          participant.champion = champions[participant.championId]
+          delete participant.championId
         })
         /* ################################### */
 
@@ -105,25 +114,14 @@ fetch(ddragonVersions)
         })
         match.participants = temp
         
-        const sepZ = 200
+        levels[0].style = getLevelStyle(0)
         for (let i = 0; i < match.timeline.info.frames.length; i+=5) {
-          levels[0].style = {
-            '--sepZ': `${sepZ}px`,
-            left: Math.ceil(match.timeline.info.frames.length / 5) * sepZ * 0.4 + 'px',
-            width:  '250px',
-            height: '250px',
-            position: 'absolute',
-            'transform-style': 'preserve-3d',
-            '--selected-translateX': '250%',
-            '--horizontal-padding': '20px',
-            '--bottom-padding': '10px',
-            '--border-width': '4px'
-          }
           levels[0].data.push(match.timeline.info.frames.slice(i, i+5))
         }
         /* #######################################*/
       })
-      .catch(() => {
+      .catch((e) => {
+        console.err(e)
         authFailed.value = true
       })
   })
@@ -144,49 +142,79 @@ function selectMap (event, index, level, data) {
     return
   }
   event.target.parentNode.classList.replace('map-hover', 'selected')
-  const takenLeft = levels[0].data.length * 45
-  const styles = [
-    {}, // level 0's style is fixed
-    {
-      '--sepZ': '200px',
-      /* top: '300px', */
-      left: `${
-        parseFloat(levels[0].style.left.slice(0, -2)) +
-        (parseFloat(levels[0].style.width.slice(0, -2)) +
-        parseFloat(levels[0].style['--horizontal-padding'].slice(0, -2)) * 2 +
-        parseFloat(levels[0].style['--border-width'].slice(0, -2)) * 2) *
-        parseFloat(levels[0].style['--selected-translateX'].slice(0, -1)) * 0.01
-      }px`,
-      width: '250px',
-      height: '250px',
-      position: 'absolute',
-      'transform-style': 'preserve-3d',
-      transform: `translateZ(${levels[0].style['--sepZ'].slice(0, -2) * index}px)`,
-      '--horizontal-padding': '20px',
-      '--bottom-padding': '10px',
-      '--border-width': '4px'
-    },
-    {
-      '--sepZ': '75px',
-      left: `${takenLeft + 800}px`,
-      width: '180px',
-      height: '180px',
-      position: 'absolute',
-      'transform-style': 'preserve-3d',
-      '--horizontal-padding': '20px',
-      '--bottom-padding': '10px',
-      '--border-width': '4px'
-      /* transform: `translateZ(${100 * index}px)` */
-    }
-  ]
-  levels[level].style = styles[level]
-  levels[level].data = data
-  levels[level].parentIndex = index
   document.querySelectorAll(`.level${level - 1}`).forEach(node => {
     if (node !== event.target.parentNode) {
       node.classList.replace('selected', 'map-hover')
     }
   })
+
+  levels[level].parentIndex = index
+  levels[level].style = getLevelStyle(level)
+  levels[level].data = data
+
+  let translateZ = 0;
+  for (let i = level; i >= 1; i--) {
+    translateZ += levels[i - 1].style['--sepZ'].slice(0, -2) *
+                  levels[i].parentIndex
+  }
+  selectedIndicators.styles[level - 1] = {
+    left: levels[level - 1].style.left,
+    width: parseFloat(levels[level].style.left.slice(0, -1)) -
+           parseFloat(levels[level - 1].style.left.slice(0, -1)) + 'px',
+    height: levels[level - 1].style.height,
+    'padding-top': levels[level - 1].style['--top-padding'],
+    'padding-bottom': levels[level - 1].style['--bottom-padding'],
+    transform: `translateZ(${translateZ}px)`
+  }
+  selectedIndicators.show[level - 1] = true
+}
+
+function getLevelStyle (level, parentIndex) {
+  const nTopLevel = Math.ceil(match.timeline.info.frames.length / 5)
+  // the Coefficient need to be fine-tuned
+  const width = window.innerWidth * 0.12 / (1 + nTopLevel * 0.032)
+  const sepZ = 0.8 * width
+
+  const style = {
+    '--sepZ': `${sepZ}px`,
+    width:  `${width}px`,
+    height:  `${width}px`,
+    position: 'absolute',
+    'transform-style': 'preserve-3d',
+    '--selected-translateX': '240%',
+    '--horizontal-padding': `${0.08 * width}px`,
+    '--bottom-padding': `${0.04 * width}px`,
+    '--top-padding': `${0.22 * width}px`,
+    '--border-width': `${0.016 * width}px`,
+    '--title-font-size': `${0.088 * width}px`
+  }
+
+  if (level == 0) {
+    style.left = `${nTopLevel * sepZ * 0.4}px`
+  }
+  else {
+    style.left = `${
+      parseFloat(levels[level - 1].style.left.slice(0, -2)) +
+      (
+      parseFloat(levels[level - 1].style.width.slice(0, -2)) +
+      parseFloat(levels[level - 1].style['--horizontal-padding'].slice(0, -2)) * 2 +
+      parseFloat(levels[level - 1].style['--border-width'].slice(0, -2)) * 2) *
+      parseFloat(levels[level - 1].style['--selected-translateX'].slice(0, -1)
+      ) * 0.01
+    }px`,
+    style.transform = `translateZ(${levels[level - 1].style['--sepZ'].slice(0, -2) * levels[level].parentIndex}px)`
+
+    if (level === 1) {
+      style.transform = `translateZ(${levels[level - 1].style['--sepZ'].slice(0, -2) * levels[level].parentIndex}px)`
+    } else if (level === 2) {
+      style.transform = `translateZ(${
+        levels[level - 2].style['--sepZ'].slice(0, -2) * levels[level - 1].parentIndex + 
+        levels[level - 1].style['--sepZ'].slice(0, -2) * levels[level].parentIndex
+      }px)`
+    }
+  }
+
+  return style
 }
 </script>
 
@@ -203,6 +231,7 @@ function selectMap (event, index, level, data) {
   </template>
 
   MatchId: {{ useRoute().params.matchId }}
+  {{ windowInnerWidth }}
   <h3>Timeline</h3>
   
   <div style="margin-bottom: 100px">
@@ -267,8 +296,10 @@ function selectMap (event, index, level, data) {
             v-for="(participantFrame, participantId) in level2.participantFrames"
             :style="{
               '--ring-hue': match.participants[participantId].teamId === 100 ? 240 : 1,
-              left: participantFrame.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px',
-              bottom: participantFrame.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px'
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                participantFrame.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                participantFrame.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
             }"
           >
             <img
@@ -282,16 +313,26 @@ function selectMap (event, index, level, data) {
     </div>
 
     <div :style="levels[2].style">
+      <TransitionGroup name="level-1">
         <div
           v-if="!!levels[2].data.length"
           v-for="(level3, index) in levels[2].data"
           :key="levels[2].parentIndex + '-' + index"
           class="map map-hover level2"
           :style="{ '--index': index }"
+          @click="selectMap($event, index, 3, level3.events)"
         >
+          <div class="map-title">
+            TIME FRAME ID: {{ level3.timestamp }}
+          </div>
           <img :src="ddragonSRMAP">
         </div>
+      </TransitionGroup>
     </div>
+
+    <div class="selected-indicator" v-if="selectedIndicators.show[0]" :style="selectedIndicators.styles[0]"></div>
+    <div class="selected-indicator" v-if="selectedIndicators.show[1]" :style="selectedIndicators.styles[1]"></div>
+
   </div>
   <!--
   <div id="cont">
@@ -323,7 +364,7 @@ img.champion-square {
   transition: transform .5s, opacity 0s ease .5s;
   transform: translateZ(calc(var(--index) * var(--sepZ)));
   background-color: #ddd4;
-  padding: 55px var(--horizontal-padding) var(--bottom-padding) var(--horizontal-padding);
+  padding: var(--top-padding) var(--horizontal-padding) var(--bottom-padding) var(--horizontal-padding);
   border: var(--border-width) solid #eee;
   backdrop-filter: blur(1.5px);
   border-radius: 5px;
@@ -339,10 +380,9 @@ img.champion-square {
 }
 .map-title {
   position: absolute;
-  font-size: 22px;
+  font-size: var(--title-font-size);
   font-weight: bold;
   top: 5px;
-  color: white;
   font-family: 'Share Tech Mono', monospace;
 }
 .ring {
@@ -351,16 +391,23 @@ img.champion-square {
     hsl(var(--ring-hue), 60%, 60%),
     hsl(var(--ring-hue), 60%, 15%),
     hsl(var(--ring-hue), 60%, 25%));
-  width: 20px;
-  height: 20px;
-  padding: 2px;
+  width:  10%;
+  height: 10%;
+  padding: 1%;
   border-radius: 50%;
 }
-.champion-icon {
-  width: 25px;
-  height: 25px;
+img.champion-icon {
   border-radius: 50%;
 }
+
+.selected-indicator {
+  position: absolute;
+  border: dotted #eee;
+  border-right: none;
+  border-radius: 5px;
+}
+
+
 #cont{
   /* background: linear-gradient(to bottom, red 0 50%, blue 50% 100%); */
   background: linear-gradient(hsl(43, 40%, 60%),  hsl(43, 40%, 15%), hsl(43, 40%, 25%));

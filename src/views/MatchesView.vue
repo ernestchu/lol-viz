@@ -11,6 +11,7 @@ let puuid = ''
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const summonersURI = '/lol/summoner/v4/summoners'
 const matchesURI = '/lol/match/v5/matches/by-puuid'
+const matchesQueryString = '?queue=420' // solo q
 const matchStatsURI = '/lol/match/v5/matches'
 
 fetch(`${proxyHost}${summonersURI}/${summonerId}`)
@@ -18,7 +19,7 @@ fetch(`${proxyHost}${summonersURI}/${summonerId}`)
   .then(data => {
     summonerName.value = data.name
     puuid = data.puuid
-    fetch(`${proxyHost}${matchesURI}/${puuid}/ids`)
+    fetch(`${proxyHost}${matchesURI}/${puuid}/ids${matchesQueryString}`)
       .then(res => res.json())
       .then(data => {
         matches.value.push(...data)
