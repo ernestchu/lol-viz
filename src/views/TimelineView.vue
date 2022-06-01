@@ -1,6 +1,6 @@
 <script setup>
 import { useRoute } from 'vue-router'
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 
 /* ddragon */
 const ddragonSRMAP = ref('')
@@ -11,14 +11,18 @@ const ddragonVersions = 'https://ddragon.leagueoflegends.com/api/versions.json'
 const positionNormFactor = 1 / 17500
 const match = reactive({})
 const levels = reactive([
-  { data: [] },
-  { data: [] },
-  { data: [] }
+  { show: false },
+  { show: false },
+  { show: false }
 ])
-const selectedIndicators = reactive({
-  show: [ false, false ],
-  styles: []
-})
+const selectedIndicators = reactive([
+  { show: false },
+  { show: false }
+])
+const closeButtons = reactive([
+  { show: false },
+  { show: false }
+])
 const authFailed = ref(false)
 const matchId = useRoute().params.matchId
 
@@ -35,10 +39,10 @@ fetch(ddragonVersions)
 
     Promise.all([
       fetch(ddragonChampions),
-      fetch(`${proxyHost}${matchStatsURI}`),
-      /* fetch('/sample-data/NA1_4309929537.json'), */
-      fetch(`${proxyHost}${timelineURI}`)
-      /* fetch(`/sample-data/timeline.json`) */
+      /* fetch(`${proxyHost}${matchStatsURI}`), */
+      fetch('/sample-data/NA1_4309929537.json'),
+      /* fetch(`${proxyHost}${timelineURI}`) */
+      fetch(`/sample-data/timeline.json`)
     ]).then(res => Promise.all([ res[0].json(), res[1].json(), res[2].json() ]))
       .then(dataArray => {
         /* ########### champion info ########## */
@@ -111,44 +115,47 @@ fetch(ddragonVersions)
         match.participants = temp
         
         levels[0].style = getLevelStyle(0)
+        levels[0].data = []
         for (let i = 0; i < match.timeline.info.frames.length; i+=5) {
           levels[0].data.push(match.timeline.info.frames.slice(i, i+5))
         }
+        levels[0].show = true
         /* #######################################*/
       })
       .catch((e) => {
-        console.err(e)
+        console.error(e)
         authFailed.value = true
       })
   })
 
-function selectMap (event, index, level, data) {
-  // remove sub levels
-  ((startLevel, endLevel) => {
-    while(startLevel <= endLevel) {
-      levels[startLevel].data = []
-      delete levels[startLevel].style
-      delete levels[startLevel].parentIndex
-      startLevel += 1
-    }
-  })(level, 2)
+function selectMap (index, level, data) {
+  closeMap(level - 1)
+  nextTick(() => {
+    const selectedNode = document.querySelectorAll(`.level${level - 1}`)[index]
+    selectedNode.classList.replace('map-hover', 'selected')
 
-  if (event.target.parentNode.classList.contains('selected')) {
-    event.target.parentNode.classList.replace('selected', 'map-hover')
-    return
-  }
-  event.target.parentNode.classList.replace('map-hover', 'selected')
-  document.querySelectorAll(`.level${level - 1}`).forEach(node => {
-    if (node !== event.target.parentNode) {
-      node.classList.replace('selected', 'map-hover')
-    }
+    levels[level].parentIndex = index
+    levels[level].style = getLevelStyle(level)
+    levels[level].data = data
+    levels[level].show = true
+
+    updateSeletedInidicator(level - 1)
+    updateCloseButton(level - 1)
   })
+}
 
-  levels[level].parentIndex = index
-  levels[level].style = getLevelStyle(level)
-  levels[level].data = data
+function closeMap (level) {
+  for (let i = level + 1; i < levels.length; i++) {
+    levels[i].show = false
+    selectedIndicators[i - 1].show = false
+    closeButtons[i - 1].show = false
+  }
 
-  updateSeletedInidicator(level - 1)
+  document.querySelectorAll(`.level${level}`).forEach(node => {
+    node.classList.add('deselected')
+    node.classList.replace('selected', 'map-hover')
+    nextTick(() => node.classList.remove('deselected'))
+  })
 }
 
 function updateSeletedInidicator (index) {
@@ -157,16 +164,36 @@ function updateSeletedInidicator (index) {
     translateZ += levels[i - 1].style['--sepZ'].slice(0, -2) *
                   levels[i].parentIndex
   }
-  selectedIndicators.styles[index] = {
+  selectedIndicators[index].style = {
     left: levels[index].style.left,
-    width: parseFloat(levels[index + 1].style.left.slice(0, -1)) -
-           parseFloat(levels[index].style.left.slice(0, -1)) + 'px',
+    '--width': parseFloat(levels[index + 1].style.left.slice(0, -2)) -
+               parseFloat(levels[index].style.left.slice(0, -2)) + 'px',
     height: levels[index].style.height,
     'padding-top': levels[index].style['--top-padding'],
     'padding-bottom': levels[index].style['--bottom-padding'],
     transform: `translateZ(${translateZ}px)`
   }
-  selectedIndicators.show[index] = true
+  selectedIndicators[index].show = true
+}
+
+function updateCloseButton (index) {
+  let translateZ = 0;
+  for (let i = index + 1; i >= 1; i--) {
+    translateZ += levels[i - 1].style['--sepZ'].slice(0, -2) *
+                  levels[i].parentIndex
+  }
+  const width = parseFloat(levels[index + 1].style.width.slice(0, -2)) * 0.2
+  closeButtons[index].style = {
+    width:  `${width}px`,
+    height: `${width}px`,
+    left: parseFloat(levels[index + 1].style.left.slice(0, -2)) +
+          parseFloat(levels[index + 1].style.width.slice(0, -2)) + 'px',
+    '--translateX': `-${(parseFloat(levels[index + 1].style.left.slice(0, -2)) -
+                        parseFloat(levels[index].style.left.slice(0, -2))) * 0.5}px`,
+    '--translateY': `-${width * 2}px`,
+    '--translateZ': `${translateZ}px`
+  }
+  closeButtons[index].show = true
 }
 
 function getLevelStyle (level) {
@@ -231,8 +258,8 @@ window.addEventListener('resize', () => {
         level.style = getLevelStyle(index)
       }
     })
-    selectedIndicators.show.forEach((show, index) => {
-      if (show) {
+    selectedIndicators.forEach((selectedIndicator, index) => {
+      if (selectedIndicator.show) {
         updateSeletedInidicator(index)
       }
     })
@@ -267,48 +294,46 @@ window.addEventListener('resize', () => {
 
   <div class="timeline">
     <div :style="levels[0].style">
-      <TransitionGroup>
-        <div
-          v-if="!!levels[0].data.length"
-          v-for="(level1, index) in levels[0].data"
-          :key="index"
-          class="map map-hover level0"
-          :style="{ '--index': index  }"
-          @click="selectMap($event, index, 1, level1)"
-        >
-          <div class="map-title">
-            TIME FRAME ID: {{ level1[0].timestamp }}
-          </div>
-          <div
-            class="ring"
-            v-for="(participantFrame, participantId) in level1[0].participantFrames"
-            :style="{
-              '--ring-hue': match.participants[participantId].teamId === 100 ? 240 : 1,
-              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
-                participantFrame.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
-              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
-                participantFrame.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
-            }"
-          >
-            <img
-              class="champion-icon"
-              :src="ddragonChampSquare(match.participants[participantId].champion.id)"
-            >
-          </div>
-          <img :src="ddragonSRMAP">
+      <div
+        v-if="levels[0].show"
+        v-for="(level1, index) in levels[0].data"
+        :key="index"
+        class="map map-hover level0"
+        :style="{ '--index': index  }"
+        @click="selectMap(index, 1, level1)"
+      >
+        <div class="map-title">
+          TIME FRAME ID: {{ level1[0].timestamp }}
         </div>
-      </TransitionGroup>
+        <div
+          class="ring"
+          v-for="(participantFrame, participantId) in level1[0].participantFrames"
+          :style="{
+            '--ring-hue': match.participants[participantId].teamId === 100 ? 240 : 1,
+            left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+              participantFrame.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
+            bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+              participantFrame.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
+          }"
+        >
+          <img
+            class="champion-icon"
+            :src="ddragonChampSquare(match.participants[participantId].champion.id)"
+          >
+        </div>
+        <img :src="ddragonSRMAP">
+      </div>
     </div>
 
     <div :style="levels[1].style">
       <TransitionGroup name="level-1">
         <div
-          v-if="!!levels[1].data.length"
+          v-if="levels[1].show"
           v-for="(level2, index) in levels[1].data"
           :key="levels[1].parentIndex + '-' + index"
           :class="{ map: true, 'map-hover': !!level2.events.length, level1: true }"
           :style="{ '--index': index }"
-          @click="!!level2.events.length ? selectMap($event, index, 2, level2.events) : null"
+          @click="!!level2.events.length ? selectMap(index, 2, level2.events) : null"
         >
           <div class="map-title">
             TIME FRAME ID: {{ level2.timestamp }}
@@ -337,7 +362,7 @@ window.addEventListener('resize', () => {
     <div :style="levels[2].style">
       <TransitionGroup name="level-1">
         <div
-          v-if="!!levels[2].data.length"
+          v-if="levels[2].show"
           v-for="(level3, index) in levels[2].data"
           :key="levels[2].parentIndex + '-' + index"
           class="map level2"
@@ -351,15 +376,22 @@ window.addEventListener('resize', () => {
       </TransitionGroup>
     </div>
 
-    <div class="selected-indicator" v-if="selectedIndicators.show[0]" :style="selectedIndicators.styles[0]"></div>
-    <div class="selected-indicator" v-if="selectedIndicators.show[1]" :style="selectedIndicators.styles[1]"></div>
+    <template v-for="selectedIndicator in selectedIndicators">
+      <Transition name="selected-indicator">
+        <div class="selected-indicator" v-if="selectedIndicator.show" :style="selectedIndicator.style"></div>
+      </Transition>
+    </template>
+
+    <template v-for="(closeButton, index) in closeButtons">
+      <Transition name="close-button">
+        <div class="close-button" v-if="closeButton.show" :style="closeButton.style" @click="closeMap(index)">
+          <div class="line"></div>
+          <div class="line"></div>
+        </div>
+      </Transition>
+    </template>
 
   </div>
-  <!--
-  <div id="cont">
-    <div id="box"></div>
-  </div>
-  -->
 </template>
 
 <style scoped>
@@ -399,6 +431,9 @@ img.champion-square {
   transform: translateZ(calc(var(--index) * var(--sepZ)))
              translateX(var(--selected-translateX));
 }
+.deselected {
+  transition: all .5s;
+}
 .map-title {
   position: absolute;
   font-size: var(--title-font-size);
@@ -422,42 +457,88 @@ img.champion-icon {
 }
 
 .selected-indicator {
+  width: var(--width);
   position: absolute;
   border: dotted #eee;
   border-right: none;
   border-radius: 5px;
 }
 
-
-#cont{
-  /* background: linear-gradient(to bottom, red 0 50%, blue 50% 100%); */
-  background: linear-gradient(hsl(43, 40%, 60%),  hsl(43, 40%, 15%), hsl(43, 40%, 25%));
-  width: 300px;
-  height: 300px;
-  border-radius: 1000px;
-  padding: 10px;
+.close-button {
+  position: absolute;
+  border: 2px solid #eee;
+  background-color: #ddd4;
+  border-radius: 50%;
+  transform: translateZ(var(--translateZ)) translateY(var(--translateY));
+  transition: all .3s;
+}
+.close-button:hover {
+  transform: translateZ(var(--translateZ)) translateY(var(--translateY))
+             scale(1.2);
+  cursor: pointer;
+  background-color: #ddd0;
+  border-color: #eee0;
+}
+.close-button .line {
+  position: absolute;
+  width: 80%;
+  left: 10%;
+  height: 10%;
+  top: 45%;
+  background-color: white;
+}
+.close-button .line:nth-child(1) {
+  transform: rotate(45deg);
+}
+.close-button .line:nth-child(2) {
+  transform: rotate(-45deg);
 }
 
-#box{
-  background: black;
-  width: 300px;
-  height: 300px;
-  border-radius: 1000px;
-}
 
 /* Vue Transition */
 .level-1-enter-active {
   transition: transform .8s, opacity .01s;
   transition-delay: .5s;
 }
-.level-1-leave-active {
-  transition: opacity .5s;
-}
 .level-1-enter-from {
   opacity: 0;
   transform: translateZ(0);
 }
+.level-1-leave-active {
+  transition: transform .7s, opacity .4s;
+}
 .level-1-leave-to {
+  opacity: 0;
+  transform: translateZ(0);
+}
+
+
+.selected-indicator-enter-active,
+.selected-indicator-leave-active {
+  transition: width .4s;
+}
+.selected-indicator-enter-from,
+.selected-indicator-leave-to {
+  width: 0px;
+}
+
+
+.close-button-enter-active,
+.close-button-leave-active {
+  transition: all .8s;
+}
+.close-button-enter-from {
+  transform: translateZ(var(--translateZ)) translateY(var(--translateY)) translateX(var(--translateX))
+             rotate(-180deg);
+  opacity: 0;
+}
+.close-button-leave-to,
+.close-button-leave-to:hover {
+  transform: translateZ(var(--translateZ)) translateY(var(--translateY)) translateX(var(--translateX))
+             scale(1.2) rotate(-180deg);
+  cursor: pointer;
+  background-color: #ddd0;
+  border-color: #eee0;
   opacity: 0;
 }
 </style>
