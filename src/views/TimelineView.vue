@@ -21,10 +21,6 @@ const selectedIndicators = reactive({
 })
 const authFailed = ref(false)
 const matchId = useRoute().params.matchId
-const windowInnerWidth = ref(window.innerWidth)
-window.addEventListener('resize', () => {
-  windowInnerWidth.value = window.innerWidth
-})
 
 fetch(ddragonVersions)
   .then(res => res.json())
@@ -152,30 +148,35 @@ function selectMap (event, index, level, data) {
   levels[level].style = getLevelStyle(level)
   levels[level].data = data
 
+  updateSeletedInidicator(level - 1)
+}
+
+function updateSeletedInidicator (index) {
   let translateZ = 0;
-  for (let i = level; i >= 1; i--) {
+  for (let i = index + 1; i >= 1; i--) {
     translateZ += levels[i - 1].style['--sepZ'].slice(0, -2) *
                   levels[i].parentIndex
   }
-  selectedIndicators.styles[level - 1] = {
-    left: levels[level - 1].style.left,
-    width: parseFloat(levels[level].style.left.slice(0, -1)) -
-           parseFloat(levels[level - 1].style.left.slice(0, -1)) + 'px',
-    height: levels[level - 1].style.height,
-    'padding-top': levels[level - 1].style['--top-padding'],
-    'padding-bottom': levels[level - 1].style['--bottom-padding'],
+  selectedIndicators.styles[index] = {
+    left: levels[index].style.left,
+    width: parseFloat(levels[index + 1].style.left.slice(0, -1)) -
+           parseFloat(levels[index].style.left.slice(0, -1)) + 'px',
+    height: levels[index].style.height,
+    'padding-top': levels[index].style['--top-padding'],
+    'padding-bottom': levels[index].style['--bottom-padding'],
     transform: `translateZ(${translateZ}px)`
   }
-  selectedIndicators.show[level - 1] = true
+  selectedIndicators.show[index] = true
 }
 
-function getLevelStyle (level, parentIndex) {
+function getLevelStyle (level) {
   const nTopLevel = Math.ceil(match.timeline.info.frames.length / 5)
   // the Coefficient need to be fine-tuned
-  const width = window.innerWidth * 0.12 / (1 + nTopLevel * 0.032)
+  const width = window.innerWidth / (6.5 + nTopLevel * 0.32)
   const sepZ = 0.8 * width
 
   const style = {
+    '--window-innerWidth': window.innerWidth,
     '--sepZ': `${sepZ}px`,
     width:  `${width}px`,
     height:  `${width}px`,
@@ -216,6 +217,28 @@ function getLevelStyle (level, parentIndex) {
 
   return style
 }
+
+/* use timeout to throttle the window resizing update */
+let resizeTimeout
+window.addEventListener('resize', () => {
+  if(!!resizeTimeout) {
+    clearTimeout(resizeTimeout)
+  }
+  resizeTimeout = setTimeout(() => {
+    window.innerWidth
+    levels.forEach((level, index) => {
+      if (level.style && level.style['--window-innerWidth'] !== window.innerWidth) {
+        level.style = getLevelStyle(index)
+      }
+    })
+    selectedIndicators.show.forEach((show, index) => {
+      if (show) {
+        updateSeletedInidicator(index)
+      }
+    })
+  }, 100) // minimal update interval: 0.1 sec
+})
+
 </script>
 
 <template>
@@ -231,7 +254,6 @@ function getLevelStyle (level, parentIndex) {
   </template>
 
   MatchId: {{ useRoute().params.matchId }}
-  {{ windowInnerWidth }}
   <h3>Timeline</h3>
   
   <div style="margin-bottom: 100px">
@@ -284,9 +306,9 @@ function getLevelStyle (level, parentIndex) {
           v-if="!!levels[1].data.length"
           v-for="(level2, index) in levels[1].data"
           :key="levels[1].parentIndex + '-' + index"
-          class="map map-hover level1"
+          :class="{ map: true, 'map-hover': !!level2.events.length, level1: true }"
           :style="{ '--index': index }"
-          @click="selectMap($event, index, 2, level2.events)"
+          @click="!!level2.events.length ? selectMap($event, index, 2, level2.events) : null"
         >
           <div class="map-title">
             TIME FRAME ID: {{ level2.timestamp }}
@@ -318,9 +340,8 @@ function getLevelStyle (level, parentIndex) {
           v-if="!!levels[2].data.length"
           v-for="(level3, index) in levels[2].data"
           :key="levels[2].parentIndex + '-' + index"
-          class="map map-hover level2"
+          class="map level2"
           :style="{ '--index': index }"
-          @click="selectMap($event, index, 3, level3.events)"
         >
           <div class="map-title">
             TIME FRAME ID: {{ level3.timestamp }}
@@ -358,7 +379,6 @@ img.champion-square {
 }
 .map {
   position: absolute;
-  cursor: pointer;
   width:  100%;
   height: 100%;
   transition: transform .5s, opacity 0s ease .5s;
@@ -370,6 +390,7 @@ img.champion-square {
   border-radius: 5px;
 }
 .map-hover:hover { /* use this to prevent still hovering when selected */
+  cursor: pointer;
   transform: translateZ(calc(var(--index) * var(--sepZ)))
              translateX(25%);
 }
