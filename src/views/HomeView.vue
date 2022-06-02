@@ -3,7 +3,7 @@ import { ref, reactive } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const challengerLeague = reactive({})
-const authFailed = ref(false)
+const showErrorMsg = ref(false)
 
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const targetURI = '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5'
@@ -17,20 +17,16 @@ fetch(proxyHost + targetURI)
     })
   })
   .catch(() => {
-    authFailed.value = true
+    showErrorMsg.value = true
   })
 </script>
 
 <template>
-  <template v-if="authFailed">
-    <h2>Invalid or expired Riot API Token!</h2>
-    Follow the
-    <a
-      href="https://github.com/ernestchu/lol-vis#setup-for-riot-api"
-      target="_blank"
-      >instruction</a
-    >
-    to setup a valid token.
+  <template v-if="showErrorMsg">
+    <div>
+      <h2>The page has encountered an error!</h2>
+      See the console for further informations.
+    </div>
   </template>
 
   <ul v-if="challengerLeague">

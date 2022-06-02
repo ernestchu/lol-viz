@@ -4,7 +4,7 @@ import { ref, reactive } from 'vue'
 const { summonerId } = useRoute().params
 
 const matches = ref([])
-const authFailed = ref(false)
+const showErrorMsg = ref(false)
 const summonerName = ref('')
 let puuid = ''
 
@@ -25,12 +25,13 @@ fetch(`${proxyHost}${summonersURI}/${summonerId}`)
         matches.value.push(...data)
       })
   })
-  .catch(() => {
-    authFailed.value = true
+  .catch((e) => {
+    console.error(e)
+    showErrorMsg.value = true
   })
 
 const matchStats = reactive({})
-const nMatches = ref(1)
+const nMatches = ref(20)
 function fetchMatchStats() {
   // matches.value.forEach(match => {
   matches.value.slice(0, nMatches.value).forEach(match => {
@@ -46,23 +47,20 @@ function fetchMatchStats() {
         stats.show = false
         matchStats[match] = stats
       })
-      .catch(() => {
-        console.error('May have reached the rate limit.')
+      .catch((e) => {
+        console.error(e, 'May have reached the rate limit.')
+        showErrorMsg.value = true
       })
   })
 }
 </script>
 
 <template>
-  <template v-if="authFailed">
-    <h2>Invalid or expired Riot API Token!</h2>
-    Follow the
-    <a
-      href="https://github.com/ernestchu/lol-vis#setup-for-riot-api"
-      target="_blank"
-      >instruction</a
-    >
-    to setup a valid token.
+  <template v-if="showErrorMsg">
+    <div>
+      <h2>The page has encountered an error!</h2>
+      See the console for further informations.
+    </div>
   </template>
 
   <template v-if="matches.length">
@@ -100,6 +98,9 @@ function fetchMatchStats() {
 </template>
 
 <style scoped>
+button {
+  color: black;
+}
 .match-no {
   color: #B3944C;
   cursor: pointer;

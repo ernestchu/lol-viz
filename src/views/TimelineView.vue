@@ -23,7 +23,7 @@ const closeButtons = reactive([
   { show: false },
   { show: false }
 ])
-const authFailed = ref(false)
+const showErrorMsg = ref(false)
 const matchId = useRoute().params.matchId
 
 fetch(ddragonVersions)
@@ -124,7 +124,7 @@ fetch(ddragonVersions)
       })
       .catch((e) => {
         console.error(e)
-        authFailed.value = true
+        showErrorMsg.value = true
       })
   })
 
@@ -270,15 +270,11 @@ window.addEventListener('resize', () => {
 </script>
 
 <template>
-  <template v-if="authFailed">
-    <h2>Invalid or expired Riot API Token!</h2>
-    Follow the
-    <a
-      href="https://github.com/ernestchu/lol-vis#setup-for-riot-api"
-      target="_blank"
-      >instruction</a
-    >
-    to setup a valid token.
+  <template v-if="showErrorMsg">
+    <div>
+      <h2>The page has encountered an error!</h2>
+      See the console for further informations.
+    </div>
   </template>
 
   MatchId: {{ useRoute().params.matchId }}
