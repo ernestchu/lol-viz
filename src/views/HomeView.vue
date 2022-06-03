@@ -15,6 +15,7 @@ fetch(proxyHost + targetURI)
     challengerLeague.entries.forEach(entry => {
       entry.show = false
     })
+    challengerLeague.entries.sort((a, b) => b.leaguePoints - a.leaguePoints)
   })
   .catch(() => {
     showErrorMsg.value = true
@@ -33,6 +34,7 @@ fetch(proxyHost + targetURI)
     <li v-for="(value, key) in challengerLeague">
       <ul v-if="key === 'entries'">
         <li v-for="entry in value">
+
           <span class="summoner-name" @click="entry.show = !entry.show">
             {{ entry.summonerName }}
           </span>
