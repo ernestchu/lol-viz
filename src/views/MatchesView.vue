@@ -34,14 +34,39 @@ const matchStats = reactive({})
 const nMatches = ref(20)
 function fetchMatchStats() {
   // matches.value.forEach(match => {
+  var champList = {};
+  var updatedChampList = [];
   matches.value.slice(0, nMatches.value).forEach(match => {
     // use a subarray to develop to prevent reaching the limit.
     fetch(`${proxyHost}${matchStatsURI}/${match}`)
       .then(res => res.json())
       .then(data => {
-        // console.log(data) // this is very rich
+        //console.log(data) // this is very rich
         const index = data.metadata.participants.indexOf(puuid)
         const stats = data.info.participants[index]
+        var i = 0
+        if(stats.championName in champList){
+          updatedChampList[champList[stats.championName]].Games++;
+          updatedChampList[champList[stats.championName]].Kills += stats.kills;
+          updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
+          updatedChampList[champList[stats.championName]].Assists += stats.assists;
+          updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
+          if(stats.win==true){
+            updatedChampList[champList[stats.championName]].Wins++;
+          }
+          updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
+        }else{
+          champList[stats.championName] = updatedChampList.length;
+          updatedChampList.push({"name":stats.championName,"Games":1,"Wins":0,"Kills":0,"Deaths":0,"Assists":0,"Damage":0,"WinRate":0});
+          updatedChampList[champList[stats.championName]].Kills += stats.kills;
+          updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
+          updatedChampList[champList[stats.championName]].Assists += stats.assists;
+          updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
+          if(stats.win==true){
+            updatedChampList[champList[stats.championName]].Wins++;
+          }
+          updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
+        }
         delete stats.challenges
         delete stats.perks
         stats.show = false
@@ -52,6 +77,36 @@ function fetchMatchStats() {
         showErrorMsg.value = true
       })
   })
+  //console.log(updatedChampList);
+  visualization(updatedChampList);
+}
+function visualization(champList){
+  console.log(champList);
+  console.log(champList[0]); // Why shows undefined?
+  const margin = {top: 10, right: 30, bottom: 20, left: 50},
+    width = 460 - margin.left - margin.right,
+    height = 360 - margin.top - margin.bottom;
+  const svg = d3.select("#my_dataviz")
+    .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  champList.forEach(object =>{
+    const x = d3.scaleBand()
+      .domain(object.name)
+      .range([0, width])
+      .padding([0.2])
+    svg.append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(x).tickSizeOuter(0));
+    const y = d3.scaleLinear()
+      .domain([0, 100])
+      .range([ height, 0 ]);
+    svg.append("g")
+      .call(d3.axisLeft(y));
+  });
 }
 </script>
 
@@ -95,6 +150,9 @@ function fetchMatchStats() {
       </li>
     </ul>
   </template>
+  <div id="my_dataviz">
+    <h3>Visualization</h3>
+  </div>
 </template>
 
 <style scoped>
