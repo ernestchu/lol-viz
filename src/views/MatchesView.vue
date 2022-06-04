@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import { ref, reactive } from 'vue'
 const { summonerId } = useRoute().params
+import * as d3 from 'd3'
 
 const matches = ref([])
 const showErrorMsg = ref(false)
@@ -33,52 +34,61 @@ fetch(`${proxyHost}${summonersURI}/${summonerId}`)
 const matchStats = reactive({})
 const nMatches = ref(20)
 function fetchMatchStats() {
-  // matches.value.forEach(match => {
   var champList = {};
   var updatedChampList = [];
+  const matchPromises = []
   matches.value.slice(0, nMatches.value).forEach(match => {
     // use a subarray to develop to prevent reaching the limit.
-    fetch(`${proxyHost}${matchStatsURI}/${match}`)
-      .then(res => res.json())
-      .then(data => {
-        //console.log(data) // this is very rich
-        const index = data.metadata.participants.indexOf(puuid)
-        const stats = data.info.participants[index]
-        var i = 0
-        if(stats.championName in champList){
-          updatedChampList[champList[stats.championName]].Games++;
-          updatedChampList[champList[stats.championName]].Kills += stats.kills;
-          updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
-          updatedChampList[champList[stats.championName]].Assists += stats.assists;
-          updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
-          if(stats.win==true){
-            updatedChampList[champList[stats.championName]].Wins++;
+  
+    const matchPromise = new Promise((resolve, reject) => {
+      fetch(`${proxyHost}${matchStatsURI}/${match}`)
+        .then(res => res.json())
+        .then(data => {
+          //console.log(data) // this is very rich
+          const index = data.metadata.participants.indexOf(puuid)
+          const stats = data.info.participants[index]
+          var i = 0
+          if(stats.championName in champList){
+            updatedChampList[champList[stats.championName]].Games++;
+            updatedChampList[champList[stats.championName]].Kills += stats.kills;
+            updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
+            updatedChampList[champList[stats.championName]].Assists += stats.assists;
+            updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
+            if(stats.win==true){
+              updatedChampList[champList[stats.championName]].Wins++;
+            }
+            updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
+          }else{
+            champList[stats.championName] = updatedChampList.length;
+            updatedChampList.push({"name":stats.championName,"Games":1,"Wins":0,"Kills":0,"Deaths":0,"Assists":0,"Damage":0,"WinRate":0});
+            updatedChampList[champList[stats.championName]].Kills += stats.kills;
+            updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
+            updatedChampList[champList[stats.championName]].Assists += stats.assists;
+            updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
+            if(stats.win==true){
+              updatedChampList[champList[stats.championName]].Wins++;
+            }
+            updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
           }
-          updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
-        }else{
-          champList[stats.championName] = updatedChampList.length;
-          updatedChampList.push({"name":stats.championName,"Games":1,"Wins":0,"Kills":0,"Deaths":0,"Assists":0,"Damage":0,"WinRate":0});
-          updatedChampList[champList[stats.championName]].Kills += stats.kills;
-          updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
-          updatedChampList[champList[stats.championName]].Assists += stats.assists;
-          updatedChampList[champList[stats.championName]].Damage += stats.totalDamageDealtToChampions;
-          if(stats.win==true){
-            updatedChampList[champList[stats.championName]].Wins++;
-          }
-          updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
-        }
-        delete stats.challenges
-        delete stats.perks
-        stats.show = false
-        matchStats[match] = stats
-      })
-      .catch((e) => {
-        console.error(e, 'May have reached the rate limit.')
-        showErrorMsg.value = true
-      })
+          delete stats.challenges
+          delete stats.perks
+          stats.show = false
+          matchStats[match] = stats
+
+          // process complete! fulfill the promise
+          resolve()
+        })
+        .catch((e) => {
+          reject(e)
+          console.error('May have reached the rate limit.')
+        })
+    })
+    matchPromises.push(matchPromise)
   })
-  //console.log(updatedChampList);
-  visualization(updatedChampList);
+
+  // call visualization when all the matches have processed
+  Promise.all(matchPromises)
+    .then(() => visualization(updatedChampList))
 }
 function visualization(champList){
   console.log(champList);
