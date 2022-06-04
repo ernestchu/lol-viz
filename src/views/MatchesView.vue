@@ -72,8 +72,9 @@ function fetchMatchStats() {
         stats.show = false
         matchStats[match] = stats
       })
-      .catch(() => {
-        console.error('May have reached the rate limit.')
+      .catch((e) => {
+        console.error(e, 'May have reached the rate limit.')
+        showErrorMsg.value = true
       })
   })
   //console.log(updatedChampList);
