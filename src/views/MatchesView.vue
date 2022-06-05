@@ -92,10 +92,14 @@ function fetchMatchStats() {
 }
 function visualization(champList){
   console.log(champList);
-  console.log(champList[0]); // Why shows undefined?
-  const margin = {top: 10, right: 30, bottom: 20, left: 50},
-    width = 460 - margin.left - margin.right,
-    height = 360 - margin.top - margin.bottom;
+  d3.selectAll('svg').remove();
+  var groups = champList.map(d => (d.name));
+  var max = d3.max(champList.map(d => (d.Games)))
+  console.log(max)
+  const subgroups = ['wins', 'loses']
+  const margin = {top: 10, right: 30, bottom: 120, left: 100},
+    width = 700 - margin.left - margin.right,
+    height = 700 - margin.top - margin.bottom;
   const svg = d3.select("#my_dataviz")
     .append("svg")
       .attr("width", width + margin.left + margin.right)
@@ -104,18 +108,36 @@ function visualization(champList){
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
   champList.forEach(object =>{
-    const x = d3.scaleBand()
-      .domain(object.name)
-      .range([0, width])
+    var y = d3.scaleBand()
+      .range([0, height])
+      .domain(groups)
       .padding([0.2])
     svg.append("g")
-      .attr("transform", `translate(0, ${height})`)
-      .call(d3.axisBottom(x).tickSizeOuter(0));
-    const y = d3.scaleLinear()
-      .domain([0, 100])
-      .range([ height, 0 ]);
-    svg.append("g")
+      .style("font", "13px sans-serif")
       .call(d3.axisLeft(y));
+    var x = d3.scaleLinear()
+      .domain([0, max])
+      .range([0, width]);
+    svg.append("g")
+      .style("font", "13px sans-serif")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(x));
+    svg.selectAll("rect")
+      .data(champList)
+      .join("rect")
+      .attr("x", x(0))
+      .attr("y", d => y(d.name) + y.bandwidth()/4)
+      .attr("width", d => x(d.Games))
+      .attr("height", y.bandwidth()/2)
+      .attr("fill", "red")
+    svg.selectAll("winrect")
+      .data(champList)
+      .join("rect")
+      .attr("x", x(0))
+      .attr("y", d => y(d.name) + y.bandwidth()/4)
+      .attr("width", d => x(d.Wins))
+      .attr("height", y.bandwidth()/2)
+      .attr("fill", "#80ced6")
   });
 }
 </script>
