@@ -95,13 +95,28 @@ fetch(ddragonVersions)
           'LEVEL_UP',
           'WARD_PLACED',
           'WARD_KILL',
-          'TURRET_PLATE_DESTROYED'
+          'TURRET_PLATE_DESTROYED',
+          'OBJECTIVE_BOUNTY_PRESTART',
+          'OBJECTIVE_BOUNTY_FINISH',
+          'GAME_END'
         ]
         // extract timeline
         data.info.frames.forEach(frame => {
           frame.events = frame.events.filter(evt => !discardEventTypes.includes(evt.type))
         })
         match.timeline = data
+
+        /* const t = {} */
+        /* data.info.frames.forEach(f => { */
+        /*   f.events.forEach(evt => { */
+        /*     if (evt.type in t) { */
+        /*       t[evt.type].push(evt) */
+        /*     } else { */
+        /*       t[evt.type] = [ evt ] */
+        /*     } */
+        /*   }) */
+        /* }) */
+        /* console.log(JSON.stringify(t)) */
 
         // extract participant
         const participantIds = {}
@@ -328,7 +343,12 @@ window.addEventListener('resize', () => {
           v-if="levels[1].show"
           v-for="(level2, index) in levels[1].data"
           :key="levels[1].parentIndex + '-' + index"
-          :class="{ map: true, 'map-hover': !!level2.events.length, level1: true }"
+          :class="{
+            map: true,
+            'map-hover': !!level2.events.length,
+            'map-no-hover': !level2.events.length,
+            level1: true
+          }"
           :style="{ '--index': index }"
           @click="!!level2.events.length ? selectMap(index, 2, level2.events) : null"
         >
@@ -422,6 +442,9 @@ img.champion-square {
   cursor: pointer;
   transform: translateZ(calc(var(--index) * var(--sepZ)))
              translateX(25%);
+}
+.map-no-hover {
+  filter: grayscale(.9);
 }
 .selected {
   opacity: 0;
