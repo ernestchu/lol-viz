@@ -94,8 +94,8 @@ function visualization(gameList, champList){
   var group = champList.map(d => (d.name));
   var max = d3.max(champList.map(d => (d.Games)))
   const subgroups = ['wins', 'loses']
-  const margin = {top: 10, right: 30, bottom: 120, left: 100},
-    width = 700 - margin.left - margin.right,
+  const margin = {top: 10, right: 230, bottom: 120, left: 100},
+    width = 900 - margin.left - margin.right,
     height = 700 - margin.top - margin.bottom;
   const svg = d3.select("#my_dataviz")
     .append("svg")
@@ -103,6 +103,15 @@ function visualization(gameList, champList){
       .attr("height", height + margin.top + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "10px")
 
   gameList.sort(function(a, b) {          
       if (a.name === b.name) {
@@ -118,17 +127,7 @@ function visualization(gameList, champList){
   }
   console.log(gameList);
 
-  var tooltip = d3.select("#my_dataviz")
-    .append("div")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "10px")
-
-  var mouseover = function(d) {
+  var mouseover = function() {
     tooltip
       .style("opacity", 1)
     d3.select(this)
@@ -136,12 +135,14 @@ function visualization(gameList, champList){
       .style("stroke", "black")
   }
   var mousemove = function(d) {
+    let pt = d3.pointer(event, this)
+    console.log(pt)
     tooltip
-      .html("Champion: " + d.name<br>"Kills: " + d.Kills<br>"Deaths: " + d.Deaths<br>"Assists: " + d.Assists<br>"Damage: " + d.Damage)
-      .style("left", (d3.event.pageX) + "px")
-      .style("top", (d3.event.pageY - 28) + "px");
+      .html("Champion: " + d.target.__data__.name +"\nKills: " + d.target.__data__.Kills + "\nDeaths: " + d.target.__data__.Deaths + "\nAssists: " + d.target.__data__.Assists + "\nDamage: " + d.target.__data__.Damage)
+      .attr('left', pt[0]+'px') //取[x]
+      .attr('top', pt[1]+'px') //取[Y]
   }
-  var mouseleave = function(d) {
+  var mouseleave = function() {
     tooltip
       .style("opacity", 0)
     d3.select(this)
