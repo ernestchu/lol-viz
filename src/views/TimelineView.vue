@@ -30,6 +30,7 @@ fetch(ddragonVersions)
   .then(res => res.json())
   .then(data => {
     ddragonSRMAP.value = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/map/map11.png`
+    ddragonSRMAP.value = `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/map11.png`
     ddragonChampSquarePrefix.value = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/champion`
     const ddragonChampions = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/data/en_US/champion.json`
 
@@ -39,10 +40,10 @@ fetch(ddragonVersions)
 
     Promise.all([
       fetch(ddragonChampions),
-      fetch(`${proxyHost}${matchStatsURI}`),
-      /* fetch('/sample-data/NA1_4309929537.json'), */
-      fetch(`${proxyHost}${timelineURI}`)
-      /* fetch(`/sample-data/timeline.json`) */
+      /* fetch(`${proxyHost}${matchStatsURI}`), */
+      fetch('/sample-data/NA1_4309929537.json'),
+      /* fetch(`${proxyHost}${timelineURI}`) */
+      fetch(`/sample-data/timeline.json`)
     ]).then(res => Promise.all([ res[0].json(), res[1].json(), res[2].json() ]))
       .then(dataArray => {
         /* ########### champion info ########## */
@@ -116,7 +117,8 @@ fetch(ddragonVersions)
         /*     } */
         /*   }) */
         /* }) */
-        /* console.log(JSON.stringify(t)) */
+        /* console.log(t['ELITE_MONSTER_KILL'].map(d => d.monsterType).reduce((a, b) => `${a}\n${b}`), '') */
+        /* console.log(t['ELITE_MONSTER_KILL'].filter(d => d.monsterSubType).map(d => d.monsterSubType).reduce((a, b) => `${a}\n${b}`), '') */
 
         // extract participant
         const participantIds = {}
@@ -215,7 +217,7 @@ function updateCloseButton (index) {
 function getLevelStyle (level) {
   const nTopLevel = Math.ceil(match.timeline.info.frames.length / 5)
   // the Coefficient need to be fine-tuned
-  const width = window.innerWidth / (6.5 + nTopLevel * 0.32)
+  const width = window.innerWidth / (6 + nTopLevel * 0.32)
   const sepZ = 0.8 * width
 
   const style = {
@@ -230,7 +232,7 @@ function getLevelStyle (level) {
     '--bottom-padding': `${0.04 * width}px`,
     '--top-padding': `${0.22 * width}px`,
     '--border-width': `${0.016 * width}px`,
-    '--title-font-size': `${0.088 * width}px`
+    '--title-font-size': `${0.1 * width}px`
   }
 
   if (level == 0) {
@@ -282,6 +284,37 @@ window.addEventListener('resize', () => {
   }, 100) // minimal update interval: 0.1 sec
 })
 
+function minisecToMinute (minisec) {
+  let sec = Math.floor(minisec / 1000)
+  const min = Math.floor(sec / 60)
+  sec -= min * 60
+  return `${min} min ${sec ? + sec + ' sec' : ''}`
+}
+
+function eliteMonsterBgColor (event) {
+  if (!event) {
+    return 'revert-layer'
+  }
+  const colors = {
+    BARON_NASHOR:   '#C35ED744',
+    RIFTHERALD:     '#F624F644',
+    ELDER_DRAGON:   '#3C364E44',
+    AIR_DRAGON:     '#29546844',
+    CHEMTECH_DRAGON:'#DFE53544',
+    EARTH_DRAGON:   '#AC8F2B44',
+    FIRE_DRAGON:    '#E06F1444',
+    HEXTECH_DRAGON: '#0A2EA844',
+    WATER_DRAGON:   '#60DAEB44'
+  }
+  const monsterType = event.monsterType === 'DRAGON' ? event.monsterSubType : event.monsterType
+  return colors[monsterType] ? colors[monsterType] : 'revert-layer'
+}
+
+function eliteMonsterIcon (event) {
+  const monsterType = event.monsterType === 'DRAGON' ? event.monsterSubType : event.monsterType
+  return `${import.meta.env.BASE_URL}images/elite-monsters/${monsterType}.png`
+}
+
 </script>
 
 <template>
@@ -311,11 +344,26 @@ window.addEventListener('resize', () => {
         v-for="(level1, index) in levels[0].data"
         :key="index"
         class="map map-hover level0"
-        :style="{ '--index': index  }"
+        :style="{
+          '--index': index,
+          'background-color': eliteMonsterBgColor(
+            level1.map(level2 => level2.events)
+                  .reduce((allEvts, evts) => allEvts.concat(evts), [])
+                  .filter(evt => evt.type === 'ELITE_MONSTER_KILL')
+                  [0]
+          )
+        }"
         @click="selectMap(index, 1, level1)"
       >
         <div class="map-title">
-          TIME FRAME ID: {{ level1[0].timestamp }}
+          TIME: {{ minisecToMinute(level1[0].timestamp) }}
+        </div>
+        <div
+          class="map-num-child"
+          :style="{ opacity: levels[1].show ? 0.3 : 1 }"
+        >
+          {{ level1.length }} frames <br>
+          {{ level1.map(level2 => level2.events.length).reduce((sum, len) => sum + len, 0) }} events
         </div>
         <div
           class="ring"
@@ -331,6 +379,50 @@ window.addEventListener('resize', () => {
           <img
             class="champion-icon"
             :src="ddragonChampSquare(match.participants[participantId].champion.id)"
+          >
+        </div>
+        <div
+          class="ring"
+          v-for="(event in level1.map(level2 => level2.events)
+                                 .reduce((allEvts, evts) => allEvts.concat(evts), [])
+                                 .filter(evt => evt.type === 'ELITE_MONSTER_KILL')"
+          :style="{
+            '--ring-hue': 43,
+            left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+              event.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
+            bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+              event.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
+          }"
+        >
+          <img
+            class="monster-icon"
+            :src="eliteMonsterIcon(event)"
+          >
+          <img
+            class="kill-icon"
+            src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+          >
+        </div>
+        <div
+          class="building"
+          v-for="(event in level1.map(level2 => level2.events)
+                                 .reduce((allEvts, evts) => allEvts.concat(evts), [])
+                                 .filter(evt => evt.type === 'BUILDING_KILL')"
+          :style="{
+            left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+              event.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
+            bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+              event.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
+          }"
+        >
+          <img
+            :src="`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/${
+              event.buildingType.split('_')[0].toLowerCase()
+            }-${event.teamId}.png`"
+          >
+          <img
+            class="kill-icon"
+            src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
           >
         </div>
         <img :src="ddragonSRMAP">
@@ -349,11 +441,22 @@ window.addEventListener('resize', () => {
             'map-no-hover': !level2.events.length,
             level1: true
           }"
-          :style="{ '--index': index }"
+          :style="{
+            '--index': index,
+            'background-color': eliteMonsterBgColor(
+              level2.events.filter(evt => evt.type === 'ELITE_MONSTER_KILL')[0]
+            )
+          }"
           @click="!!level2.events.length ? selectMap(index, 2, level2.events) : null"
         >
           <div class="map-title">
-            TIME FRAME ID: {{ level2.timestamp }}
+            TIME: {{ minisecToMinute(level2.timestamp) }}
+          </div>
+          <div
+            class="map-num-child"
+            :style="{ opacity: levels[2].show ? 0.3 : 1 }"
+          >
+            {{ level2.events.length }} events
           </div>
           <div
             class="ring"
@@ -371,6 +474,46 @@ window.addEventListener('resize', () => {
               :src="ddragonChampSquare(match.participants[participantId].champion.id)"
             >
           </div>
+          <div
+            class="ring"
+            v-for="(event in level2.events.filter(evt => evt.type === 'ELITE_MONSTER_KILL')"
+            :style="{
+              '--ring-hue': 43,
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          >
+            <img
+              class="monster-icon"
+              :src="eliteMonsterIcon(event)"
+            >
+            <img
+              class="kill-icon"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+            >
+          </div>
+          <div
+            class="building"
+            v-for="(event in level2.events.filter(evt => evt.type === 'BUILDING_KILL')"
+            :style="{
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          >
+            <img
+              :src="`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/${
+                event.buildingType.split('_')[0].toLowerCase()
+              }-${event.teamId}.png`"
+            >
+            <img
+              class="kill-icon"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+            >
+          </div>
           <img :src="ddragonSRMAP">
         </div>
       </TransitionGroup>
@@ -382,11 +525,58 @@ window.addEventListener('resize', () => {
           v-if="levels[2].show"
           v-for="(level3, index) in levels[2].data"
           :key="levels[2].parentIndex + '-' + index"
-          class="map level2"
-          :style="{ '--index': index }"
+          class="map map-hover level2"
+          :style="{
+            '--index': index,
+            'background-color': eliteMonsterBgColor(
+              level3.type === 'ELITE_MONSTER_KILL' ? level3 : null
+            ),
+            cursor: 'revert'
+          }"
         >
           <div class="map-title">
-            TIME FRAME ID: {{ level3.timestamp }}
+            TIME: {{ minisecToMinute(level3.timestamp) }}
+          </div>
+          <div class="map-num-child">{{ level3.type }}</div>
+          <div
+            class="ring"
+            v-if="level3.type === 'ELITE_MONSTER_KILL'"
+            :style="{
+              '--ring-hue': 43,
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                level3.position.x * positionNormFactor * levels[2].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                level3.position.y * positionNormFactor * levels[2].style.height.slice(0, -2) + 'px)'
+            }"
+          >
+            <img
+              class="monster-icon"
+              :src="eliteMonsterIcon(level3)"
+            >
+            <img
+              class="kill-icon"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+            >
+          </div>
+          <div
+            class="building"
+            v-if="level3.type === 'BUILDING_KILL'"
+            :style="{
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                level3.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                level3.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          >
+            <img
+              :src="`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/${
+                level3.buildingType.split('_')[0].toLowerCase()
+              }-${level3.teamId}.png`"
+            >
+            <img
+              class="kill-icon"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+            >
           </div>
           <img :src="ddragonSRMAP">
         </div>
@@ -430,7 +620,7 @@ img.champion-square {
   position: absolute;
   width:  100%;
   height: 100%;
-  transition: transform .5s, opacity 0s ease .5s;
+  transition: transform .8s, opacity .7s ease .3s;
   transform: translateZ(calc(var(--index) * var(--sepZ)));
   background-color: #ddd4;
   padding: var(--top-padding) var(--horizontal-padding) var(--bottom-padding) var(--horizontal-padding);
@@ -441,7 +631,7 @@ img.champion-square {
 .map-hover:hover { /* use this to prevent still hovering when selected */
   cursor: pointer;
   transform: translateZ(calc(var(--index) * var(--sepZ)))
-             translateX(25%);
+             translateX(60%);
 }
 .map-no-hover {
   filter: grayscale(.9);
@@ -461,6 +651,13 @@ img.champion-square {
   top: 5px;
   font-family: 'Share Tech Mono', monospace;
 }
+.map-num-child {
+  position: absolute;
+  font-size: var(--title-font-size);
+  bottom: 5px;
+  right: -50%;
+  font-family: 'Share Tech Mono', monospace;
+}
 .ring {
   position: absolute;
   background: linear-gradient(
@@ -473,6 +670,21 @@ img.champion-square {
   border-radius: 50%;
 }
 img.champion-icon {
+  border-radius: 50%;
+}
+img.monster-icon {
+  border-radius: 50%;
+}
+img + img.kill-icon {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  opacity: 70%;
+}
+.building {
+  position: absolute;
+  width:  10%;
+  height: 10%;
   border-radius: 50%;
 }
 

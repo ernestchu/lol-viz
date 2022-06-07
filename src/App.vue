@@ -1,11 +1,13 @@
 <script setup>
 import { RouterView, RouterLink } from 'vue-router'
+
+const logoURL = `${import.meta.env.BASE_URL}images/logo.png`
 </script>
 
 <template>
   <RouterLink :to="{ name: 'home' }">
     <div id="logo">
-      <img src="https://www.leagueoflegends.com/static/logo-1200-589b3ef693ce8a750fa4b4704f1e61f2.png">
+      <img :src="logoURL">
       <span>VISUALIZER</span>
     </div>
   </RouterLink>
