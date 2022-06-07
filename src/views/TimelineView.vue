@@ -25,6 +25,13 @@ const closeButtons = reactive([
 ])
 const showErrorMsg = ref(false)
 const matchId = useRoute().params.matchId
+const pins = reactive({
+  championLocations:  { show: false, displayMessage: 'Champion locations' },
+  championKills:      { show: true,  displayMessage: 'Champion kills' },
+  championMultiKills: { show: true,  displayMessage: 'Champion multiple kills'},
+  monstersKills:      { show: true,  displayMessage: 'Monster kills' },
+  buildingsKills:     { show: true,  displayMessage: 'Building kills' }
+})
 
 fetch(ddragonVersions)
   .then(res => res.json())
@@ -40,10 +47,10 @@ fetch(ddragonVersions)
 
     Promise.all([
       fetch(ddragonChampions),
-      /* fetch(`${proxyHost}${matchStatsURI}`), */
-      fetch('/sample-data/NA1_4309929537.json'),
-      /* fetch(`${proxyHost}${timelineURI}`) */
-      fetch(`/sample-data/timeline.json`)
+      fetch(`${proxyHost}${matchStatsURI}`),
+      /* fetch('/sample-data/NA1_4309929537.json'), */
+      fetch(`${proxyHost}${timelineURI}`)
+      /* fetch(`/sample-data/timeline.json`) */
     ]).then(res => Promise.all([ res[0].json(), res[1].json(), res[2].json() ]))
       .then(dataArray => {
         /* ########### champion info ########## */
@@ -315,9 +322,33 @@ function eliteMonsterIcon (event) {
   return `${import.meta.env.BASE_URL}images/elite-monsters/${monsterType}.png`
 }
 
+const previewWindow = reactive({ show: false })
+function showPreview ($event, event) {
+  const { clientX, clientY } = $event
+  const mapWidth = parseFloat(levels[0].style.width.slice(0, -2))
+  previewWindow.style = {
+    width: mapWidth * 1.5 + 'px',
+    height: mapWidth * 0.375 + 'px',
+    top: clientY - mapWidth * 0.4 + 'px',
+    left: clientX + 'px',
+  }
+  const attrs = [ 'killerId', 'victimId', 'timestamp' ]
+  attrs.forEach(attr => {
+    previewWindow[attr] = event[attr]
+  })
+  previewWindow.timestamp = Math.floor(previewWindow.timestamp / 1000)
+  previewWindow.timestamp = `
+    ${Math.round(previewWindow.timestamp / 60)}:${(previewWindow.timestamp % 60).toString().padStart(2, '0')}
+  `
+  previewWindow.show = true
+}
+function hidePreview () {
+  previewWindow.show = false
+}
 </script>
 
 <template>
+
   <template v-if="showErrorMsg">
     <div>
       <h2>The page has encountered an error!</h2>
@@ -327,6 +358,11 @@ function eliteMonsterIcon (event) {
 
   MatchId: {{ useRoute().params.matchId }}
   <h3>Timeline</h3>
+
+  <template v-for="(pin, index) in pins">
+    <input type="checkbox" :id="`pin-checkbox${index}`" v-model="pin.show" />
+    <label :for="`pin-checkbox${index}`">{{ pin.displayMessage }}</label><br>
+  </template>
   
   <div style="margin-bottom: 100px">
     <img
@@ -335,7 +371,6 @@ function eliteMonsterIcon (event) {
       :src="ddragonChampSquare(participant.champion.id)"
     >
   </div>
-  
 
   <div class="timeline">
     <div :style="levels[0].style">
@@ -366,10 +401,11 @@ function eliteMonsterIcon (event) {
           {{ level1.map(level2 => level2.events.length).reduce((sum, len) => sum + len, 0) }} events
         </div>
         <div
+          v-if="pins.championLocations.show"
           class="ring"
           v-for="(participantFrame, participantId) in level1[0].participantFrames"
           :style="{
-            '--ring-hue': match.participants[participantId].teamId === 100 ? 240 : 1,
+            '--ring-hue': match.participants[participantId].teamId === 100 ? 189 : 352,
             left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
               participantFrame.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
             bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
@@ -382,6 +418,7 @@ function eliteMonsterIcon (event) {
           >
         </div>
         <div
+          v-if="pins.monstersKills.show"
           class="ring"
           v-for="(event in level1.map(level2 => level2.events)
                                  .reduce((allEvts, evts) => allEvts.concat(evts), [])
@@ -398,12 +435,9 @@ function eliteMonsterIcon (event) {
             class="monster-icon"
             :src="eliteMonsterIcon(event)"
           >
-          <img
-            class="kill-icon"
-            src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
-          >
         </div>
         <div
+          v-if="pins.buildingsKills.show"
           class="building"
           v-for="(event in level1.map(level2 => level2.events)
                                  .reduce((allEvts, evts) => allEvts.concat(evts), [])
@@ -420,11 +454,38 @@ function eliteMonsterIcon (event) {
               event.buildingType.split('_')[0].toLowerCase()
             }-${event.teamId}.png`"
           >
-          <img
-            class="kill-icon"
-            src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
-          >
         </div>
+        <div
+          v-if="pins.championMultiKills.show"
+          class="champion-kill-multi"
+          v-for="(event in level1.map(level2 => level2.events)
+                                 .reduce((allEvts, evts) => allEvts.concat(evts), [])
+                                 .filter(evt => evt.killType === 'KILL_MULTI')"
+          :style="{
+            '--background-color': match.participants[event.killerId].teamId === 200 ? '#0D8BA0' : '#B61C30',
+            '--multi-kill-length': event.multiKillLength,
+            left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+              event.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
+            bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+              event.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
+          }"
+        ></div>
+        <div
+          v-if="pins.championKills.show"
+          class="champion-kill"
+          v-for="(event in level1.map(level2 => level2.events)
+                                 .reduce((allEvts, evts) => allEvts.concat(evts), [])
+                                 .filter(evt => evt.type === 'CHAMPION_KILL')"
+          @mouseenter="showPreview($event, event)"
+          @mouseleave="hidePreview()"
+          :style="{
+            '--background-color': match.participants[event.victimId].teamId === 100 ? '#0D8BA0' : '#B61C30',
+            left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+              event.position.x * positionNormFactor * levels[0].style.width.slice(0, -2) + 'px)',
+            bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+              event.position.y * positionNormFactor * levels[0].style.height.slice(0, -2) + 'px)'
+          }"
+        ></div>
         <img :src="ddragonSRMAP">
       </div>
     </div>
@@ -459,10 +520,11 @@ function eliteMonsterIcon (event) {
             {{ level2.events.length }} events
           </div>
           <div
+            v-if="pins.championLocations.show"
             class="ring"
             v-for="(participantFrame, participantId) in level2.participantFrames"
             :style="{
-              '--ring-hue': match.participants[participantId].teamId === 100 ? 240 : 1,
+              '--ring-hue': match.participants[participantId].teamId === 100 ? 189 : 352,
               left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
                 participantFrame.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
               bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
@@ -475,6 +537,7 @@ function eliteMonsterIcon (event) {
             >
           </div>
           <div
+            v-if="pins.monstersKills.show"
             class="ring"
             v-for="(event in level2.events.filter(evt => evt.type === 'ELITE_MONSTER_KILL')"
             :style="{
@@ -489,12 +552,9 @@ function eliteMonsterIcon (event) {
               class="monster-icon"
               :src="eliteMonsterIcon(event)"
             >
-            <img
-              class="kill-icon"
-              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
-            >
           </div>
           <div
+            v-if="pins.buildingsKills.show"
             class="building"
             v-for="(event in level2.events.filter(evt => evt.type === 'BUILDING_KILL')"
             :style="{
@@ -509,11 +569,34 @@ function eliteMonsterIcon (event) {
                 event.buildingType.split('_')[0].toLowerCase()
               }-${event.teamId}.png`"
             >
-            <img
-              class="kill-icon"
-              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
-            >
           </div>
+          <div
+            v-if="pins.championMultiKills.show"
+            class="champion-kill-multi"
+            v-for="(event in level2.events.filter(evt => evt.killType === 'KILL_MULTI')"
+            :style="{
+              '--background-color': match.participants[event.killerId].teamId === 200 ? '#0D8BA0' : '#B61C30',
+              '--multi-kill-length': event.multiKillLength,
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          ></div>
+          <div
+            v-if="pins.championKills.show"
+            class="champion-kill"
+            v-for="(event in level2.events.filter(evt => evt.type === 'CHAMPION_KILL')"
+            @mouseenter="showPreview($event, event)"
+            @mouseleave="hidePreview()"
+            :style="{
+              '--background-color': match.participants[event.victimId].teamId === 100 ? '#0D8BA0' : '#B61C30',
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          ></div>
           <img :src="ddragonSRMAP">
         </div>
       </TransitionGroup>
@@ -523,61 +606,78 @@ function eliteMonsterIcon (event) {
       <TransitionGroup name="level-1">
         <div
           v-if="levels[2].show"
-          v-for="(level3, index) in levels[2].data"
+          v-for="(event, index) in levels[2].data"
           :key="levels[2].parentIndex + '-' + index"
           class="map map-hover level2"
           :style="{
             '--index': index,
             'background-color': eliteMonsterBgColor(
-              level3.type === 'ELITE_MONSTER_KILL' ? level3 : null
+              event.type === 'ELITE_MONSTER_KILL' ? event : null
             ),
             cursor: 'revert'
           }"
         >
           <div class="map-title">
-            TIME: {{ minisecToMinute(level3.timestamp) }}
+            TIME: {{ minisecToMinute(event.timestamp) }}
           </div>
-          <div class="map-num-child">{{ level3.type }}</div>
+          <div class="map-num-child map-event-type">{{ event.type }}</div>
           <div
             class="ring"
-            v-if="level3.type === 'ELITE_MONSTER_KILL'"
+            v-if="pins.monstersKills.show && event.type === 'ELITE_MONSTER_KILL'"
             :style="{
               '--ring-hue': 43,
               left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
-                level3.position.x * positionNormFactor * levels[2].style.width.slice(0, -2) + 'px)',
+                event.position.x * positionNormFactor * levels[2].style.width.slice(0, -2) + 'px)',
               bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
-                level3.position.y * positionNormFactor * levels[2].style.height.slice(0, -2) + 'px)'
+                event.position.y * positionNormFactor * levels[2].style.height.slice(0, -2) + 'px)'
             }"
           >
             <img
               class="monster-icon"
-              :src="eliteMonsterIcon(level3)"
-            >
-            <img
-              class="kill-icon"
-              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+              :src="eliteMonsterIcon(event)"
             >
           </div>
           <div
             class="building"
-            v-if="level3.type === 'BUILDING_KILL'"
+            v-if="pins.buildingsKills.show && event.type === 'BUILDING_KILL'"
             :style="{
               left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
-                level3.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
               bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
-                level3.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
             }"
           >
             <img
               :src="`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/${
-                level3.buildingType.split('_')[0].toLowerCase()
-              }-${level3.teamId}.png`"
-            >
-            <img
-              class="kill-icon"
-              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png"
+                event.buildingType.split('_')[0].toLowerCase()
+              }-${event.teamId}.png`"
             >
           </div>
+          <div
+            v-if="pins.buildingsKills.show && event.killType === 'KILL_MULTI'"
+            class="champion-kill-multi"
+            :style="{
+              '--background-color': match.participants[event.killerId].teamId === 200 ? '#0D8BA0' : '#B61C30',
+              '--multi-kill-length': event.multiKillLength,
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[2].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[2].style.height.slice(0, -2) + 'px)'
+            }"
+          ></div>
+          <div
+            v-if="pins.championKills.show && event.type === 'CHAMPION_KILL'"
+            class="champion-kill"
+            @mouseenter="showPreview($event, event)"
+            @mouseleave="hidePreview()"
+            :style="{
+              '--background-color': match.participants[event.victimId].teamId === 100 ? '#0D8BA0' : '#B61C30',
+              left: 'calc(var(--border-width) + var(--horizontal-padding) + ' +
+                event.position.x * positionNormFactor * levels[1].style.width.slice(0, -2) + 'px)',
+              bottom: 'calc(var(--border-width) + var(--bottom-padding) + ' +
+                event.position.y * positionNormFactor * levels[1].style.height.slice(0, -2) + 'px)'
+            }"
+          ></div>
           <img :src="ddragonSRMAP">
         </div>
       </TransitionGroup>
@@ -599,12 +699,31 @@ function eliteMonsterIcon (event) {
     </template>
 
   </div>
+
+  <div
+    v-if="previewWindow.show"
+    class="preview-window"
+    :style=previewWindow.style
+  >
+    <div
+      class="ring"
+      :style="{ '--ring-hue': match.participants[previewWindow.killerId].teamId === 100 ? 189 : 352 }">
+      <img :src="ddragonChampSquare(match.participants[previewWindow.killerId].champion.id)">
+    </div>
+    <img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-match-history/global/default/kills.png" alt="">
+    <div
+      class="ring"
+      :style="{ '--ring-hue': match.participants[previewWindow.victimId].teamId === 100 ? 189 : 352 }">
+      <img :src="ddragonChampSquare(match.participants[previewWindow.victimId].champion.id)">
+    </div>
+    <span>{{ previewWindow.timestamp }}</span>
+  </div>
+
 </template>
 
 <style scoped>
 img {
   width : 100%;
-  height: 100%;
 }
 img.champion-square {
   width: 100px;
@@ -634,7 +753,12 @@ img.champion-square {
              translateX(60%);
 }
 .map-no-hover {
-  filter: grayscale(.9);
+  background-color: #ddd0;
+  border: var(--border-width) dashed #eee;
+}
+.map-no-hover:hover {
+  transform: translateZ(calc(var(--index) * var(--sepZ)))
+             translateX(60%);
 }
 .selected {
   opacity: 0;
@@ -654,19 +778,23 @@ img.champion-square {
 .map-num-child {
   position: absolute;
   font-size: var(--title-font-size);
-  bottom: 5px;
+  bottom: 1%;
   right: -50%;
   font-family: 'Share Tech Mono', monospace;
+}
+.map-event-type {
+  bottom: -13%;
 }
 .ring {
   position: absolute;
   background: linear-gradient(
-    hsl(var(--ring-hue), 60%, 60%),
-    hsl(var(--ring-hue), 60%, 15%),
-    hsl(var(--ring-hue), 60%, 25%));
+    hsl(var(--ring-hue), 80%, 60%),
+    hsl(var(--ring-hue), 80%, 15%),
+    hsl(var(--ring-hue), 80%, 25%));
   width:  10%;
   height: 10%;
   padding: 1%;
+  padding-bottom: .5%;
   border-radius: 50%;
 }
 img.champion-icon {
@@ -675,17 +803,26 @@ img.champion-icon {
 img.monster-icon {
   border-radius: 50%;
 }
-img + img.kill-icon {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-  opacity: 70%;
-}
 .building {
   position: absolute;
   width:  10%;
   height: 10%;
+}
+.champion-kill {
+  position: absolute;
+  width:  4%;
+  height: 4%;
   border-radius: 50%;
+  border: 1px solid black;
+  background-color: var(--background-color);
+}
+.champion-kill-multi {
+  position: absolute;
+  width:  calc(4% * var(--multi-kill-length));
+  height: calc(4% * var(--multi-kill-length));
+  opacity: .4;
+  border-radius: 50%;
+  background-color: var(--background-color);
 }
 
 .selected-indicator {
@@ -725,6 +862,42 @@ img + img.kill-icon {
 .close-button .line:nth-child(2) {
   transform: rotate(-45deg);
 }
+
+.preview-window {
+  transform: rotateX(340deg) rotateY(335deg);
+  position: fixed;
+  background-color: #040D14EE;
+  border: 3px solid #6D5024;
+}
+.preview-window .ring {
+  position: revert;
+  display: inline-block;
+  background: linear-gradient(
+    hsl(var(--ring-hue), 80%, 60%),
+    hsl(var(--ring-hue), 80%, 15%),
+    hsl(var(--ring-hue), 80%, 25%));
+  width:  15%;
+  height: revert;
+  padding: 1.5%;
+  padding-bottom: .5%;
+  margin: 3%;
+  border-radius: 50%;
+}
+.preview-window .ring img {
+  border-radius: 50%;
+}
+.preview-window > img {
+  width: 15%;
+  margin: 0 2%;
+}
+.preview-window > span {
+  position: absolute;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.7vw;
+  top: 27%;
+  right: 3%;
+}
+
 
 
 /* Vue Transition */
