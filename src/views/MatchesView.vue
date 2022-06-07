@@ -36,10 +36,10 @@ const nMatches = ref(20)
 function fetchMatchStats() {
   var champList = {};
   var updatedChampList = [];
+  var gameList = [];
   const matchPromises = []
   matches.value.slice(0, nMatches.value).forEach(match => {
     // use a subarray to develop to prevent reaching the limit.
-  
     const matchPromise = new Promise((resolve, reject) => {
       fetch(`${proxyHost}${matchStatsURI}/${match}`)
         .then(res => res.json())
@@ -47,7 +47,6 @@ function fetchMatchStats() {
           //console.log(data) // this is very rich
           const index = data.metadata.participants.indexOf(puuid)
           const stats = data.info.participants[index]
-          var i = 0
           if(stats.championName in champList){
             updatedChampList[champList[stats.championName]].Games++;
             updatedChampList[champList[stats.championName]].Kills += stats.kills;
@@ -70,11 +69,11 @@ function fetchMatchStats() {
             }
             updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
           }
+          gameList.push({"name":stats.championName,"Kills":stats.kills, "Deaths":stats.deaths, "Assists":stats.assists, "Damage":stats.totalDamageDealtToChampions, "Games":1, "Wins":stats.win, "ID":match });
           delete stats.challenges
           delete stats.perks
           stats.show = false
           matchStats[match] = stats
-
           // process complete! fulfill the promise
           resolve()
         })
@@ -85,37 +84,108 @@ function fetchMatchStats() {
     })
     matchPromises.push(matchPromise)
   })
-
   // call visualization when all the matches have processed
   Promise.all(matchPromises)
-    .then(() => visualization(updatedChampList))
+    .then(() => visualization(gameList, updatedChampList))
 }
-function visualization(champList){
-  console.log(champList);
-  console.log(champList[0]); // Why shows undefined?
-  const margin = {top: 10, right: 30, bottom: 20, left: 50},
-    width = 460 - margin.left - margin.right,
-    height = 360 - margin.top - margin.bottom;
+function visualization(gameList, champList){
+  d3.selectAll('svg').remove();
+  var updatedGameList = [];
+  var group = champList.map(d => (d.name));
+  var max = d3.max(champList.map(d => (d.Games)))
+  const subgroups = ['wins', 'loses']
+  const margin = {top: 10, right: 230, bottom: 120, left: 100},
+    width = 900 - margin.left - margin.right,
+    height = 700 - margin.top - margin.bottom;
   const svg = d3.select("#my_dataviz")
     .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "10px")
 
-  champList.forEach(object =>{
-    const x = d3.scaleBand()
-      .domain(object.name)
-      .range([0, width])
+  gameList.sort(function(a, b) {          
+      if (a.name === b.name) {
+         // Price is only important when cities are the same
+         return b.Wins - a.Wins;
+      }
+      return a.name > b.name ? 1 : -1;
+   });
+  for(var i=1; i<gameList.length; i++){
+    if(gameList[i].name===gameList[i-1].name){
+      gameList[i].Games=gameList[i-1].Games+1;
+    }
+  }
+  console.log(gameList);
+
+  var mouseover = function() {
+    tooltip
+      .style("opacity", 1)
+    d3.select(this)
+      .style("r", 20)
+      .style("stroke", "black")
+  }
+  var mousemove = function(d) {
+    let pt = d3.pointer(event, this)
+    console.log(pt)
+    tooltip
+      .html("Champion: " + d.target.__data__.name +"\nKills: " + d.target.__data__.Kills + "\nDeaths: " + d.target.__data__.Deaths + "\nAssists: " + d.target.__data__.Assists + "\nDamage: " + d.target.__data__.Damage)
+      .attr('left', pt[0]+'px') //取[x]
+      .attr('top', pt[1]+'px') //取[Y]
+  }
+  var mouseleave = function() {
+    tooltip
+      .style("opacity", 0)
+    d3.select(this)
+      .style("r", 10)
+      .style("stroke", "none")
+  }
+  gameList.forEach(object =>{
+    var y = d3.scaleBand()
+      .range([0, height])
+      .domain(group)
       .padding([0.2])
     svg.append("g")
-      .attr("transform", `translate(0, ${height})`)
-      .call(d3.axisBottom(x).tickSizeOuter(0));
-    const y = d3.scaleLinear()
-      .domain([0, 100])
-      .range([ height, 0 ]);
-    svg.append("g")
+      .style("font", "13px sans-serif")
       .call(d3.axisLeft(y));
+    var x = d3.scaleLinear()
+      .domain([0, max])
+      .range([0, width]);
+    svg.append("g")
+      .style("font", "13px sans-serif")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(x));
+    var dots = svg.selectAll("circle")
+      .data(gameList)
+      .enter().append("circle")
+      .attr("class", "dot")
+      .attr("r", 10)
+      .attr("cx", function(d) {
+        return x(d.Games)
+      })
+      .attr("cy", function(d) {
+        return y(d.name) + y.bandwidth()/2
+      })
+      .style("fill", function(d) {
+        if(d.Wins == true){
+          return "skyblue"
+        }
+        else{
+          return "red"
+        };
+      })
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
   });
 }
 </script>
