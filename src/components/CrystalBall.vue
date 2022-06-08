@@ -1,6 +1,7 @@
 <script setup>
-const { win } = defineProps([ 'win' ])
+const { win, bandwidth } = defineProps([ 'win', 'bandwidth' ])
 const style = {
+  '--scale': bandwidth / 195,
   '--color1': '#F85',
   '--color2': '#930',
   '--color3': '#FA8',
@@ -25,7 +26,7 @@ if (!win) {
   left: 50%;
   top: 50%;
   border-radius: 100%;
-  transform: translate(-50%, -50%) rotate(30deg) scale(0.25);
+  transform: translate(-50%, -50%) rotate(30deg) scale(var(--scale));
   width: 195px;
   height: 195px;
   box-shadow: 1px 10px 50px -20px, inset -1px 30px 50px -10px #fff, inset -1px -30px 50px -10px #210, inset 0 120px 7px -70px rgba(255, 255, 240, 0.2);
@@ -39,7 +40,7 @@ if (!win) {
   top: 50%;
   overflow: hidden;
   border-radius: 100%;
-  transform: translate(-50%, -50%) scale(0.25);
+  transform: translate(-50%, -50%) scale(var(--scale));
   width: 190px;
   height: 190px;
   box-shadow: 0 0 50px -20px var(--color1);

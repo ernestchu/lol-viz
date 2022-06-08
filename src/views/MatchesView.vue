@@ -115,7 +115,7 @@ function makeChart (champList, gameList) {
   const labels = [...Array(nGames).keys()].map(i => i + 1)
   const x = d3.scaleBand()
     .domain(labels)
-    .range([0, 1000])
+    .range([0, 900])
     .padding(0.1)
 
   const y = d3.scaleBand()
@@ -136,6 +136,10 @@ function makeChart (champList, gameList) {
       }
     })
   })
+  chart.x = x
+  chart.y = y
+  chart.xLabels = labels
+  chart.yLabels = champList.map(d => d.name)
   chart.done = true
 }
 
@@ -202,10 +206,29 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
   </template>
 
   <div class="chart" v-if="chart.done">
+    <div
+      class="y-axis"
+      v-for="label in chart.yLabels"
+      :style="{ top: chart.y(label) + 'px' }"
+    >
+      <img :src="ddragonChampSquare(label)" :style="{ width: chart.y.bandwidth() + 'px', 'border-radius': '50%' }">
+    </div>
+    <div
+      class="x-axis"
+      v-for="label in chart.xLabels"
+      :style="{ left: chart.x(label) - chart.y.bandwidth() / 4 + 'px' }"
+    >
+      {{ label }}
+      <template v-if="label === chart.xLabels[chart.xLabels.length - 1]">
+        (Games in total)
+      </template>
+    </div>
     <CrystalBall
       v-for="dot in chart.dots"
+      class="crystal"
       :style="dot.style"
       :win="dot.game.Wins"
+      :bandwidth="chart.y.bandwidth()"
       @mouseenter="showPreviewWindow($event, dot.game)"
       @mousemove="updatePreviewWindow($event)"
       @mouseleave="hidePreviewWindow()"
@@ -234,12 +257,21 @@ button {
 }
 .chart {
   position: relative;
-  margin-left: 100px;
+  margin-left: 200px;
+}
+.chart .y-axis {
+  left: -150px;
+}
+.chart .x-axis {
+  top: -60px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 30px;
+  white-space: nowrap;
 }
 .chart > div {
   position: absolute;
 }
-.chart > div:hover {
+.chart .crystal:hover {
   cursor: pointer;
 }
 
