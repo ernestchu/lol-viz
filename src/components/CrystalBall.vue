@@ -5,17 +5,10 @@ let style = {
   '--color1': 'purple',
   '--color2': 'blue',
   '--color3': '#4E6A49',
-  // '--color1': 'purple',
-  // '--color2': '#CEAFBB', 
-  // '--color3': '#4F5D75', 
 }
 if (!win) {
-  // style.filter = 'grayscale(1)'
   style = {
     '--scale': bandwidth / 195,
-    // '--color1': 'purple',
-    // '--color2': 'blue',
-    // '--color3': '#4E6A49',
     '--color1': 'black',
     '--color2': 'red', 
     '--color3': '#4F5D75', 
