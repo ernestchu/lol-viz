@@ -13,9 +13,9 @@ fetch(proxyHost + targetURI)
   .then(res => res.json())
   .then(data => {
     Object.assign(challengerLeague, data)
-    challengerLeague.entries.forEach(entry => {
-      entry.show = false
-    })
+    // challengerLeague.entries.forEach(entry => {
+    //   entry.show = false
+    // })
     challengerLeague.entries.sort((a, b) => b.leaguePoints - a.leaguePoints)
     computeTreemap()
   })
@@ -34,7 +34,13 @@ function computeTreemap () {
     (entriesHierarchy)
 
   const colorScale = d3.scaleLinear()
-    .range(['#B3944C88', 'lightblue'])
+    .range(['#d5d1b3aa', '#688387aa']) // #f5f7ddaa/ #4c5985aa
+    .domain([
+      d3.max(challengerLeague.entries.map(d => d.leaguePoints)),
+      d3.min(challengerLeague.entries.map(d => d.leaguePoints))
+    ])
+  const colorScaleInverse = d3.scaleLinear()
+    .range(['#688387', '#d5d1b3'])
     .domain([
       d3.max(challengerLeague.entries.map(d => d.leaguePoints)),
       d3.min(challengerLeague.entries.map(d => d.leaguePoints))
@@ -47,7 +53,8 @@ function computeTreemap () {
       top   : y0 + 'px',
       width : (x1 - x0) + 'px',
       height: (y1 - y0) + 'px',
-      'background-color': colorScale(entry.leaguePoints)
+      'background-color': colorScale(entry.leaguePoints),
+      '--link-color': colorScaleInverse(entry.leaguePoints)
     }
 
     entry.style = style
@@ -61,8 +68,35 @@ window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout)
   }
   resizeTimeout = setTimeout(() => {
-    // update window.innerWidth to the treemap
-    computeTreemap()
+    const chosenEntry = challengerLeague.entries.filter(entry => entry.isChosen)[0]
+    if (!chosenEntry) {
+      // update window.innerWidth to the treemap
+      computeTreemap()
+      return
+    } else {
+      // if an entries is chosen
+      // make a hard copy of full screen style
+      const style = JSON.parse(JSON.stringify(chosenEntry.style))
+      // recompute style for each entry
+      computeTreemap()
+      // backup the recomputed style
+      chosenEntry.styleBackup = chosenEntry.style
+      // putback the full screen style
+      chosenEntry.style = style
+      // response to the resized window width
+      chosenEntry.style.width = window.innerWidth * 0.98 + 'px'
+
+      // update bar chart
+      const x = d3.scaleLinear()
+        .domain([
+          0,
+          d3.max(chosenEntry.masteryBars.map(d => d.championPoints))
+        ])
+        .range([0, window.innerWidth * 0.80])
+      chosenEntry.masteryBars.forEach(bar => {
+        bar.style.width = x(bar.championPoints) + 'px'
+      })
+    }
   }, 100) // minimal update interval: 0.1 sec
 })
 
@@ -76,6 +110,7 @@ function zoomIn (entry) {
   entry.style.height = 750 + 'px'
   entry.style['z-index'] = 999
   entry.style['background-color'] = RGBAToHexA(entry.style['background-color']).slice(0, -2)
+  entry.style['--link-color'] = '#4a506b';
 
 
   // get champion mastry info
@@ -85,40 +120,53 @@ function zoomIn (entry) {
       data = data.slice(0, 15)
 
       // uncomment to examine the data
-      /* data.forEach(champ => { */
-      /*   console.log(champ.championPoints) */
-      /*   console.log(champions[champ.championId]) */
-      /* }) */
+      // data.forEach(champ => { 
+      // console.log(champ.championPoints) 
+      // console.log(champions[champ.championId])
+      // })
 
       const x = d3.scaleLinear()
         .domain([
-          d3.min(data.map(d => d.championPoints)),
+          0,
           d3.max(data.map(d => d.championPoints))
         ])
-        .range([0, 1000])
+        .range([0, window.innerWidth * 0.80])
       const y = d3.scaleBand()
         .domain(data.map(d => d.championId))
         .range([0, 600])
         .padding(.1)
 
+
+
       const masteryBars = []
       data.forEach(d => {
         masteryBars.push({
           championId: d.championId,
+          championPoints: d.championPoints,
           style: {
             left:  y.bandwidth() * 1.3 + '0px', // save space for the icons
             top: y(d.championId) + 'px',
-            width: x(d.championPoints) + 'px',
+            width: '0px',
             height: y.bandwidth() + 'px',
-            'background-color': 'red'
+            'background-color': 'rgba(255, 255, 255, .5)'
           },
           imgStyle: {
             left: -y.bandwidth() * 1.3 + 'px',
-            width: y.bandwidth() + 'px'
+            width: y.bandwidth() + 'px',
+            opacity: '0'
           }
         })
       })
       entry.masteryBars = masteryBars
+
+      entry.masteryBars.forEach((bar, index) => {
+        setTimeout(() => {
+          bar.style.width = x(bar.championPoints) + 'px'
+          bar.imgStyle.opacity = 1
+        }, 40 * index)
+        setTimeout(() => bar.style['--white-space'] = 'nowrap', entry.masteryBars.length * 40)
+      })
+
     })
 }
 
@@ -205,61 +253,61 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
   <div id="d3"></div>
 
   <div class="treemap" v-if="challengerLeague">
-    <div class="summoner-block" v-for="entry in challengerLeague.entries" :style="entry.style" @click="entry.isChosen ? null : zoomIn(entry)">
+    <div
+      v-for="entry in challengerLeague.entries"
+      :class="{ 'summoner-block': true, 'no-pointer': entry.isChosen }"
+      :style="entry.style" @click="entry.isChosen ? null : zoomIn(entry)"
+    >
       <div v-if="entry.isChosen" class="close-button" @click="zoomOut($event, entry)">
         <div class="line"></div>
         <div class="line"></div>
       </div>
       <!-- <button v-if="entry.isChosen" @click="zoomOut(entry)"></button> -->
-      <div class="summoner-detail" v-if="+entry.style.width.slice(0, -2) > 100">
-        <span class="summoner-name" @click="entry.show = !entry.show">
-          {{ entry.summonerName }}
+      <div
+        class="summoner-detail"
+        v-if="+entry.style.width.slice(0, -2) > 105"
+      >
+        <span :class="{ 'summoner-name': true, 'summoner-name-chosen': entry.isChosen }">
+          {{ entry.summonerName }} 
+          <div class="lp">{{entry.leaguePoints}} LP</div>
         </span>
-        <ul v-if="entry.show">
           <RouterLink
+            v-if="entry.isChosen"
+            class="matches"
             :to="{
               name: 'matches',
               params: { summonerId: entry.summonerId }
             }"
           >
-            View matches
+          [View matches]
           </RouterLink>
-          <template v-for="(entryValue, entryKey) in entry">
-            <li v-if="entryKey != 'show'">
-              {{ entryKey }}: {{ entryValue }}
-            </li>
-          </template>
-        </ul>
       </div>
       <div class="mastery-bar-chart" v-if="entry.isChosen && entry.masteryBars">
         <div v-for="bar in entry.masteryBars" :style="bar.style">
           <img :src="ddragonChampSquare(champions[bar.championId].id)" :style="bar.imgStyle">
+          <div> {{ champions[bar.championId].name }} > {{ bar.championPoints }} PT </div>
         </div>
       </div>
+      <div v-if="entry.isChosen" class="bar-chart-title"> Champion Mastery </div>
     </div>
   </div>
 
 </template>
 
 <style scoped>
-.mastery-bar-chart {
-  position: relative;
-  margin: 30px;
-}
-.mastery-bar-chart > div {
-  position: absolute;
-}
-.mastery-bar-chart > div > img {
-  position: absolute;
-  top: 0px;
-}
-
 .treemap {
   position: relative;
   margin-bottom: 1000px;
 }
 .summoner-block {
   position: absolute;
+  transition: all .5s;
+}
+.summoner-block:hover {
+  cursor: pointer;
+}
+.no-pointer:hover {
+  cursor: revert;
 }
 .summoner-detail {
   font-size: 10px;
@@ -271,7 +319,24 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
   color: white;
   cursor: pointer;
 }
-
+.summoner-name-chosen {
+  font-size: 30px;
+  font-weight: bolder;
+  color: white;
+}
+.matches {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--link-color);
+  font-size: 30px;
+  padding: 10px;
+}
+.lp{
+  display: inline-block;  
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+}
 button {
   background-color: transparent;
   background-repeat: no-repeat;
@@ -281,15 +346,15 @@ button {
   outline: none;
 }
 
-
 .close-button {
   width: 30px;
   height: 30px;
   position: absolute;
-  right: 0px;
-  border: 2px solid #eee;
-  background-color: #ddd4;
-  border-radius: 50%;
+  right: 4px;
+  top: 7px;
+  /* border: 2px solid #eee; */
+  /* background-color: #ddd4; */
+  /* border-radius: 50%; */
   transition: all .3s;
 }
 .close-button:hover {
@@ -301,7 +366,7 @@ button {
 .close-button .line {
   position: absolute;
   width: 70%;
-  left: 10%;
+  left: 17%;
   height: 10%;
   top: 45%;
   background-color: white;
@@ -312,5 +377,41 @@ button {
 .close-button .line:nth-child(2) {
   transform: rotate(-45deg);
 }
+.mastery-bar-chart {
+  position: relative;
+  margin: 30px;
+  margin-left: 75px;
+}
+.mastery-bar-chart > div {
+  position: absolute;
+  transition: width .8s;
+  font-family: 'Share Tech Mono', monospace;
+}
+.mastery-bar-chart > div > img {
+  position: absolute;
+  top: 0px;
+  transition: opacity .8s;
+}
+.mastery-bar-chart > div > div {
+  position: absolute;
+  color:#4a506b;
+  white-space: var(--white-space);
+  font-size: 12pt;
+  left: 5px;
+  top: 8px;
+}
+
+.bar-chart-title {
+  position: absolute;
+  left: -80px;
+  top: 28%;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 30px;
+  color:#4a506b;
+  transform: rotate(270deg);
+  /* transition-delay: s; */
+}
+
+
 
 </style>
