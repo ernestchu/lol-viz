@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import * as d3 from 'd3'
 
+const challengerLogoURL = `${import.meta.env.BASE_URL}images/challenger-2022.png`
 const challengerLeague = reactive({})
 const showErrorMsg = ref(false)
 
@@ -250,7 +251,13 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
     </div>
   </template>
 
-  <div id="d3"></div>
+  <div class="description">
+    <img :src="challengerLogoURL">
+    <div>
+      Top summoner's statistics and visualizations <br>
+      in Challenger League!
+    </div>
+  </div>
 
   <div class="treemap" v-if="challengerLeague">
     <div
@@ -295,6 +302,22 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
 </template>
 
 <style scoped>
+.description {
+  position: relative;
+  padding-left: 100px;
+  margin-bottom: 30px;
+}
+.description > img {
+  width: 150px;
+}
+.description > div {
+  position: absolute;
+  top: 35px;
+  left: 280px;
+  display: inline-block;
+  font-size: 35px;
+  font-family: 'Share Tech Mono', monospace;
+}
 .treemap {
   position: relative;
   margin-bottom: 1000px;
