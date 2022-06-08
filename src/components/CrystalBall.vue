@@ -1,16 +1,25 @@
 <script setup>
 const { win, bandwidth } = defineProps([ 'win', 'bandwidth' ])
-const style = {
+let style = {
   '--scale': bandwidth / 195,
-  '--color1': '#F85',
-  '--color2': '#930',
-  '--color3': '#FA8',
-  /* '--color1': '#003049', */
-  /* '--color2': '#d62828', */
-  /* '--color3': '#f77f00', */
+  '--color1': 'purple',
+  '--color2': 'blue',
+  '--color3': '#4E6A49',
+  // '--color1': 'purple',
+  // '--color2': '#CEAFBB', 
+  // '--color3': '#4F5D75', 
 }
 if (!win) {
-  style.filter = 'grayscale(1)'
+  // style.filter = 'grayscale(1)'
+  style = {
+    '--scale': bandwidth / 195,
+    // '--color1': 'purple',
+    // '--color2': 'blue',
+    // '--color3': '#4E6A49',
+    '--color1': 'black',
+    '--color2': 'red', 
+    '--color3': '#4F5D75', 
+  }
 }
 </script>
 <template>
@@ -59,8 +68,8 @@ if (!win) {
   transform: translate(-50%, -50%);
   width: 200px;
   height: 200px;
-  -webkit-animation: spin2 6s infinite linear;
-          animation: spin2 6s infinite linear;
+  -webkit-animation: spin2 20s infinite linear;
+          animation: spin2 20s infinite linear;
   background-color: var(--color1);
   background-image: linear-gradient(transparent 29.29%, var(--color3) 29.29%, var(--color2) 70.71%, transparent 70.71%), linear-gradient(90deg, transparent 29.29%, var(--color3) 29.29%, var(--color2) 70.71%, transparent 70.71%);
   z-index: 10;
