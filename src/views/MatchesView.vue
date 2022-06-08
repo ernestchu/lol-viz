@@ -200,10 +200,10 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
     </div>
   </template>
 
-  <template v-if="matches.length">
-    Summoner: {{ summonerName }} <br />
-    <h3>Matches</h3>
-  </template>
+  <div class="description" v-if="matches.length">
+    <div class="title">{{ summonerName }}'s matches</div>
+    <div class="content">Hover on the crystal balls to explore</div>
+  </div>
 
   <div class="chart" v-if="chart.done">
     <div
@@ -248,6 +248,17 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
 </template>
 
 <style scoped>
+.description {
+  margin: 30px 0 130px 30px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.description .title {
+  font-size: 50px;
+}
+.description .content {
+  font-size: 35px;
+}
+
 button {
   color: black;
 }
