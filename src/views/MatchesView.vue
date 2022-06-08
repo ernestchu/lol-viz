@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { ref, reactive } from 'vue'
 const { summonerId } = useRoute().params
 import * as d3 from 'd3'
+import CrystalBall from '@/components/CrystalBall.vue'
 
 const matches = reactive([])
 const showErrorMsg = ref(false)
@@ -12,7 +13,7 @@ let puuid = ''
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const summonersURI = '/lol/summoner/v4/summoners'
 const matchesURI = '/lol/match/v5/matches/by-puuid'
-const matchesQueryString = '?queue=420&count=25' // solo q
+const matchesQueryString = '?queue=420&count=30' // solo q
 const matchStatsURI = '/lol/match/v5/matches'
 
 fetch(`${proxyHost}${summonersURI}/${summonerId}`)
@@ -44,7 +45,6 @@ function fetchMatchStats() {
       fetch(`${proxyHost}${matchStatsURI}/${match}`)
         .then(res => res.json())
         .then(data => {
-          //console.log(data) // this is very rich
           const index = data.metadata.participants.indexOf(puuid)
           const stats = data.info.participants[index]
           if(stats.championName in champList){
@@ -59,7 +59,7 @@ function fetchMatchStats() {
             updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
           }else{
             champList[stats.championName] = updatedChampList.length;
-            updatedChampList.push({"name":stats.championName,"Games":1,"Wins":0,"Kills":0,"Deaths":0,"Assists":0,"Damage":0,"WinRate":0});
+            updatedChampList.push({"name":stats.championName,'championId':stats.championId,"Games":1,"Wins":0,"Kills":0,"Deaths":0,"Assists":0,"Damage":0,"WinRate":0});
             updatedChampList[champList[stats.championName]].Kills += stats.kills;
             updatedChampList[champList[stats.championName]].Deaths += stats.deaths;
             updatedChampList[champList[stats.championName]].Assists += stats.assists;
@@ -69,7 +69,7 @@ function fetchMatchStats() {
             }
             updatedChampList[champList[stats.championName]].WinRate = Math.floor((updatedChampList[champList[stats.championName]].Wins/updatedChampList[champList[stats.championName]].Games) * 100) + '%';
           }
-          gameList.push({"name":stats.championName,"Kills":stats.kills, "Deaths":stats.deaths, "Assists":stats.assists, "Damage":stats.totalDamageDealtToChampions, "Games":1, "Wins":stats.win, "ID":match });
+          gameList.push({"name":stats.championName,'championId':stats.championId,"Kills":stats.kills, "Deaths":stats.deaths, "Assists":stats.assists, "Damage":stats.totalDamageDealtToChampions, "Games":1, "Wins":stats.win, "ID":match });
           delete stats.challenges
           delete stats.perks
           stats.show = false
@@ -89,108 +89,103 @@ function fetchMatchStats() {
     .then(() => visualization(gameList, updatedChampList))
 }
 function visualization(gameList, champList){
-  d3.selectAll('svg').remove();
-  var updatedGameList = [];
-  var group = champList.map(d => (d.name));
-  var max = d3.max(champList.map(d => (d.Games)))
-  const subgroups = ['wins', 'loses']
-  const margin = {top: 10, right: 230, bottom: 120, left: 100},
-    width = 900 - margin.left - margin.right,
-    height = 600 - margin.top - margin.bottom;
-  const svg = d3.select("#my_dataviz")
-    .append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
   gameList.sort(function(a, b) {          
-      if (a.name === b.name) {
-         // Price is only important when cities are the same
-         return b.Wins - a.Wins;
-      }
-      return a.name > b.name ? 1 : -1;
-   });
+    if (a.name === b.name) {
+       return b.Wins - a.Wins
+    }
+    return a.name > b.name ? 1 : -1
+  })
   for(var i=1; i<gameList.length; i++){
-    if(gameList[i].name===gameList[i-1].name){
-      gameList[i].Games=gameList[i-1].Games+1;
+    if(gameList[i].name === gameList[i-1].name){
+      gameList[i].Games = gameList[i-1].Games+1
     }
   }
-  console.log(gameList);
-
-  var tooltip = d3.select("#my_dataviz")
-    .append("div")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "black")
-    .style("border", "solid")
-    .style("border-width", "2px")
-    .style("border-radius", "5px")
-    .style("padding", "5px")
-    .style("position", "absolute")
-
-  var mouseover = function() {
-    tooltip
-      .style("opacity", 1)
-    d3.select(this)
-      .style("r", 30)
-      .style("stroke", "black")
-  }
-
-  var mousemove = function(d) {
-    tooltip
-      .html("Champion: " + d.target.__data__.name +"<br>Kills: " + d.target.__data__.Kills + "<br>Deaths: " + d.target.__data__.Deaths + "<br>Assists: " + d.target.__data__.Assists + "<br>Damage: " + d.target.__data__.Damage)
-      .style('left', (event.pageX+30)+"px")
-      .style('top', (event.pageY-100)+"px")
-  }
-
-  var mouseleave = function() {
-    tooltip
-      .style("opacity", 0)
-    d3.select(this)
-      .style("r", 15)
-      .style("stroke", "none")
-  }
-
-  gameList.forEach(object =>{
-    var y = d3.scaleBand()
-      .range([0, height])
-      .domain(group)
-      .padding([0.2])
-    svg.append("g")
-      .style("font", "13px sans-serif")
-      .call(d3.axisLeft(y));
-    var x = d3.scaleLinear()
-      .domain([0, max])
-      .range([0, width]);
-    svg.append("g")
-      .style("font", "13px sans-serif")
-      .attr("transform", `translate(0, ${height})`)
-      .call(d3.axisBottom(x));
-    var dots = svg.selectAll("circle")
-      .data(gameList)
-      .enter().append("circle")
-      .attr("class", "dot")
-      .attr("r", 15)
-      .attr("cx", function(d) {
-        return x(d.Games)
-      })
-      .attr("cy", function(d) {
-        return y(d.name) + y.bandwidth()/2
-      })
-      .style("fill", function(d) {
-        if(d.Wins == true){
-          return "skyblue"
-        }
-        else{
-          return "red"
-        };
-      })
-      .on("mouseover", mouseover)
-      .on("mousemove", mousemove)
-      .on("mouseleave", mouseleave)
-  });
+  champList.sort((a, b) =>  {
+    if (a.Wins === b.Wins) {
+      return b.Games - a.Games
+    }
+    return b.Wins - a.Wins
+  })
+  makeChart(champList, gameList)
 }
+
+const chart = reactive({})
+function makeChart (champList, gameList) {
+  const nGames = d3.max(champList.map(d => d.Games))
+  const labels = [...Array(nGames).keys()].map(i => i + 1)
+  const x = d3.scaleBand()
+    .domain(labels)
+    .range([0, 1000])
+    .padding(0.1)
+
+  const y = d3.scaleBand()
+    .range([0, 1000])
+    .domain(champList.map(d => d.name))
+    .padding(0.2)
+
+  chart.dots = []
+  gameList.forEach(d => {
+    chart.dots.push({
+      game: d,
+      style: {
+        left: x(d.Games) + 'px',
+        top: y(d.name) + y.bandwidth()/2 + 'px',
+        /* width: x.bandwidth() + 'px', */
+        /* height: x.bandwidth() + 'px', */
+        /* 'background-color': d.Wins ? '#4394A7' : '#AE303C' */
+      }
+    })
+  })
+  chart.done = true
+}
+
+const previewWindow = reactive({ show: false })
+
+function showPreviewWindow ($event, game) {
+  const { clientX, clientY } = $event
+  previewWindow.data = game
+  previewWindow.style = {
+    top: clientY - 150 + 'px',
+    left: clientX - 50 + 'px'
+  }
+  previewWindow.show = true
+}
+function updatePreviewWindow ($event) {
+  const { clientX, clientY } = $event
+  previewWindow.style = {
+    top: clientY - 150 + 'px',
+    left: clientX - 50 + 'px'
+  }
+}
+function hidePreviewWindow () {
+  previewWindow.show = false
+  delete previewWindow.data
+}
+
+const champions = reactive({})
+let ddragonChampSquarePrefix = ''
+function ddragonChampSquare (id) {
+  return ddragonChampSquarePrefix + `/${id}.png`
+}
+fetch('https://ddragon.leagueoflegends.com/api/versions.json')
+  .then(res => res.json())
+  .then(data => {
+    ddragonChampSquarePrefix = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/champion`
+    fetch(`https://ddragon.leagueoflegends.com/cdn/${data[0]}/data/en_US/champion.json`)
+      .then(res => res.json())
+      .then(({ data }) => {
+        /* ########### champion info ########## */
+        /* keep keys/values we need */
+        for (const [key, value] of Object.entries(data)) {
+          /* dont use the championsId as key, fuck Fiddlesticks */
+          champions[data[key]['key']] = [ 'id', 'key', 'name' ].reduce((prev, curr) => {
+            prev[curr] = data[key][curr]
+            return prev
+          }, {})
+        }
+        /* #################################### */
+      })
+  })
 </script>
 
 <template>
@@ -204,30 +199,28 @@ function visualization(gameList, champList){
   <template v-if="matches.length">
     Summoner: {{ summonerName }} <br />
     <h3>Matches</h3>
-    <ul>
-      <li v-for="match in matches">
-        <span
-          :class="{ 'match-no': !!matchStats[match] }"
-          @click="
-            matchStats[match]
-              ? (matchStats[match].show = !matchStats[match].show)
-              : null
-          "
-          >{{ match }}</span
-        >
-        <ul v-if="matchStats[match] && matchStats[match].show">
-          <RouterLink :to="{ name: 'timeline', params: { matchId: match } }">
-            View match timeline
-          </RouterLink>
-          <template v-for="(statValue, statKey) in matchStats[match]">
-            <li v-if="statKey != 'show'">{{ statKey }}: {{ statValue }}</li>
-          </template>
-        </ul>
-      </li>
-    </ul>
   </template>
-  <div id="my_dataviz">
-    <h3>Visualization</h3>
+
+  <div class="chart" v-if="chart.done">
+    <CrystalBall
+      v-for="dot in chart.dots"
+      :style="dot.style"
+      :win="dot.game.Wins"
+      @mouseenter="showPreviewWindow($event, dot.game)"
+      @mousemove="updatePreviewWindow($event)"
+      @mouseleave="hidePreviewWindow()"
+      @click="$router.push({ name: 'timeline', params: { matchId: dot.game.ID } })"
+    />
+  </div>
+
+  <div class="preview-window" v-if="previewWindow.show" :style="previewWindow.style">
+    <img :src="ddragonChampSquare(champions[previewWindow.data.championId].id)" alt="">
+    <div class="KDA">
+      {{ `${previewWindow.data.Kills}/${previewWindow.data.Deaths}/${previewWindow.data.Assists}` }}
+    </div>
+    <div class="damage">{{ previewWindow.data.Damage }} DAMAGE DEALT</div>
+    <div class="border"></div>
+    <div class="click">Click to view the match timeline</div>
   </div>
 </template>
 
@@ -239,4 +232,60 @@ button {
   color: #B3944C;
   cursor: pointer;
 }
+.chart {
+  position: relative;
+  margin-left: 100px;
+}
+.chart > div {
+  position: absolute;
+}
+.chart > div:hover {
+  cursor: pointer;
+}
+
+.preview-window {
+  position: fixed;
+  width: 250px;
+  height: 100px;
+  background-color: #fff1;
+  backdrop-filter: blur(5px);
+  z-index: 999;
+}
+.preview-window img {
+  position: absolute;
+  top: 10%;
+  left: -5%;
+  height: 80%;
+}
+.preview-window > div.KDA {
+  position: absolute;
+  right: 5%;
+  top: 10%;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 40px;
+}
+.preview-window > div.damage {
+  position: absolute;
+  right: 5%;
+  bottom: 15%;
+  font-size: 15.5px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.preview-window > div.click {
+  position: absolute;
+  white-space: nowrap;
+  left: 50%;
+  bottom: -40%;
+  font-size: 15.5px;
+  font-family: 'Share Tech Mono', monospace;
+}
+.preview-window > div.border {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #B3944C;
+}
+
 </style>
