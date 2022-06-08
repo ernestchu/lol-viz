@@ -79,7 +79,7 @@ function zoomIn (entry) {
 
 
   // get champion mastry info
-  fetch(`https://na1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/${entry.summonerId}?api_key=RGAPI-0a372b87-e4a8-4995-90bf-5fa18b78ef09`)
+  fetch(`${proxyHost}/lol/champion-mastery/v4/champion-masteries/by-summoner/${entry.summonerId}`)
     .then(res => res.json())
     .then(data => {
       data = data.slice(0, 15)
