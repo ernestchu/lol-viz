@@ -68,31 +68,66 @@ window.addEventListener('resize', () => {
 
 function zoomIn (entry) {
   entry.isChosen = true
-
-  entry.styleBackup = {}
-  entry.styleBackup.top = entry.style.top
-  entry.styleBackup.left = entry.style.left
-  entry.styleBackup.width = entry.style.width
-  entry.styleBackup.height = entry.style.height
-  entry.styleBackup['background-color'] = entry.style['background-color']
-  console.log('before:', entry.styleBackup)
+  // make a hard copy of the original style
+  entry.styleBackup = JSON.parse(JSON.stringify(entry.style))
   entry.style.top = 0
   entry.style.left = 0
   entry.style.width = window.innerWidth * 0.98 + 'px'
   entry.style.height = 750 + 'px'
   entry.style['z-index'] = 999
   entry.style['background-color'] = RGBAToHexA(entry.style['background-color']).slice(0, -2)
+
+
+  // get champion mastry info
+  fetch(`https://na1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-summoner/${entry.summonerId}?api_key=RGAPI-0a372b87-e4a8-4995-90bf-5fa18b78ef09`)
+    .then(res => res.json())
+    .then(data => {
+      data = data.slice(0, 15)
+
+      // uncomment to examine the data
+      /* data.forEach(champ => { */
+      /*   console.log(champ.championPoints) */
+      /*   console.log(champions[champ.championId]) */
+      /* }) */
+
+      const x = d3.scaleLinear()
+        .domain([
+          d3.min(data.map(d => d.championPoints)),
+          d3.max(data.map(d => d.championPoints))
+        ])
+        .range([0, 1000])
+      const y = d3.scaleBand()
+        .domain(data.map(d => d.championId))
+        .range([0, 600])
+        .padding(.1)
+
+      const masteryBars = []
+      data.forEach(d => {
+        masteryBars.push({
+          championId: d.championId,
+          style: {
+            left:  y.bandwidth() * 1.3 + '0px', // save space for the icons
+            top: y(d.championId) + 'px',
+            width: x(d.championPoints) + 'px',
+            height: y.bandwidth() + 'px',
+            'background-color': 'red'
+          },
+          imgStyle: {
+            left: -y.bandwidth() * 1.3 + 'px',
+            width: y.bandwidth() + 'px'
+          }
+        })
+      })
+      entry.masteryBars = masteryBars
+    })
 }
 
 function zoomOut ($event, entry) {
   $event.stopPropagation()
   entry.isChosen = false
-  entry.style = { ...entry.style, ...entry.styleBackup }
-  // entry.style.top = entry.styleBackup.top
-  // entry.style.left = entry.styleBackup.left
-  // entry.style.width = entry.styleBackup.width
-  // entry.style.height = entry.styleBackup.height
-  console.log('after:', entry.style)
+  entry.style = JSON.parse(JSON.stringify(entry.styleBackup))
+  delete entry.styleBackup
+  delete entry.masteryBars
 }
 
 function RGBAToHexA(rgba) {
@@ -131,6 +166,32 @@ function RGBAToHexA(rgba) {
 
   return "#" + r + g + b + a;
 }
+
+const champions = reactive({})
+let ddragonChampSquarePrefix = ''
+function ddragonChampSquare (id) {
+  return ddragonChampSquarePrefix + `/${id}.png`
+}
+fetch('https://ddragon.leagueoflegends.com/api/versions.json')
+  .then(res => res.json())
+  .then(data => {
+    ddragonChampSquarePrefix = `https://ddragon.leagueoflegends.com/cdn/${data[0]}/img/champion`
+    fetch(`https://ddragon.leagueoflegends.com/cdn/${data[0]}/data/en_US/champion.json`)
+      .then(res => res.json())
+      .then(({ data }) => {
+        /* ########### champion info ########## */
+        /* keep keys/values we need */
+        for (const [key, value] of Object.entries(data)) {
+          /* dont use the championsId as key, fuck Fiddlesticks */
+          champions[data[key]['key']] = [ 'id', 'key', 'name' ].reduce((prev, curr) => {
+            prev[curr] = data[key][curr]
+            return prev
+          }, {})
+        }
+        /* #################################### */
+      })
+  })
+
 </script>
 
 <template>
@@ -144,7 +205,7 @@ function RGBAToHexA(rgba) {
   <div id="d3"></div>
 
   <div class="treemap" v-if="challengerLeague">
-    <div class="summoner-block" v-for="entry in challengerLeague.entries" :style="entry.style" @click="zoomIn(entry)">
+    <div class="summoner-block" v-for="entry in challengerLeague.entries" :style="entry.style" @click="entry.isChosen ? null : zoomIn(entry)">
       <div v-if="entry.isChosen" class="close-button" @click="zoomOut($event, entry)">
         <div class="line"></div>
         <div class="line"></div>
@@ -170,12 +231,29 @@ function RGBAToHexA(rgba) {
           </template>
         </ul>
       </div>
+      <div class="mastery-bar-chart" v-if="entry.isChosen && entry.masteryBars">
+        <div v-for="bar in entry.masteryBars" :style="bar.style">
+          <img :src="ddragonChampSquare(champions[bar.championId].id)" :style="bar.imgStyle">
+        </div>
+      </div>
     </div>
   </div>
 
 </template>
 
 <style scoped>
+.mastery-bar-chart {
+  position: relative;
+  margin: 30px;
+}
+.mastery-bar-chart > div {
+  position: absolute;
+}
+.mastery-bar-chart > div > img {
+  position: absolute;
+  top: 0px;
+}
+
 .treemap {
   position: relative;
   margin-bottom: 1000px;
@@ -185,7 +263,6 @@ function RGBAToHexA(rgba) {
 }
 .summoner-detail {
   font-size: 10px;
-  position: absolute;
   margin: 10px;
 }
 .summoner-name {
