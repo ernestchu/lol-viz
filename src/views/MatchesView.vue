@@ -4,7 +4,7 @@ import { ref, reactive } from 'vue'
 const { summonerId } = useRoute().params
 import * as d3 from 'd3'
 
-const matches = ref([])
+const matches = reactive([])
 const showErrorMsg = ref(false)
 const summonerName = ref('')
 let puuid = ''
@@ -12,7 +12,7 @@ let puuid = ''
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const summonersURI = '/lol/summoner/v4/summoners'
 const matchesURI = '/lol/match/v5/matches/by-puuid'
-const matchesQueryString = '?queue=420' // solo q
+const matchesQueryString = '?queue=420&count=25' // solo q
 const matchStatsURI = '/lol/match/v5/matches'
 
 fetch(`${proxyHost}${summonersURI}/${summonerId}`)
@@ -23,7 +23,8 @@ fetch(`${proxyHost}${summonersURI}/${summonerId}`)
     fetch(`${proxyHost}${matchesURI}/${puuid}/ids${matchesQueryString}`)
       .then(res => res.json())
       .then(data => {
-        matches.value.push(...data)
+        matches.push(...data)
+        fetchMatchStats()
       })
   })
   .catch((e) => {
@@ -32,13 +33,12 @@ fetch(`${proxyHost}${summonersURI}/${summonerId}`)
   })
 
 const matchStats = reactive({})
-const nMatches = ref(20)
 function fetchMatchStats() {
   var champList = {};
   var updatedChampList = [];
   var gameList = [];
   const matchPromises = []
-  matches.value.slice(0, nMatches.value).forEach(match => {
+  matches.forEach(match => {
     // use a subarray to develop to prevent reaching the limit.
     const matchPromise = new Promise((resolve, reject) => {
       fetch(`${proxyHost}${matchStatsURI}/${match}`)
@@ -79,7 +79,7 @@ function fetchMatchStats() {
         })
         .catch((e) => {
           reject(e)
-          console.error('May have reached the rate limit.')
+          console.error(e)
         })
     })
     matchPromises.push(matchPromise)
@@ -203,13 +203,6 @@ function visualization(gameList, champList){
 
   <template v-if="matches.length">
     Summoner: {{ summonerName }} <br />
-    <input v-model="nMatches" type="range" min="1" max="20" />{{
-      nMatches
-    }}
-    match(es) per fetch<br />
-    <button @click="fetchMatchStats">Fetch match stats</button>
-    (will sent up to 20 requests, note the rate limit of 20 req/sec, 100
-    req/min)
     <h3>Matches</h3>
     <ul>
       <li v-for="match in matches">
