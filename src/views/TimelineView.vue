@@ -26,7 +26,7 @@ const closeButtons = reactive([
 const showErrorMsg = ref(false)
 const matchId = useRoute().params.matchId
 const pins = reactive({
-  championLocations:  { show: false, displayMessage: 'Champion locations' },
+  championLocations:  { show: true, displayMessage: 'Champion locations' },
   championKills:      { show: true,  displayMessage: 'Champion kills' },
   championMultiKills: { show: true,  displayMessage: 'Champion multiple kills'},
   monstersKills:      { show: true,  displayMessage: 'Monster kills' },
@@ -356,21 +356,39 @@ function hidePreview () {
     </div>
   </template>
 
-  MatchId: {{ useRoute().params.matchId }}
-  <h3>Timeline</h3>
-
-  <template v-for="(pin, index) in pins">
-    <input type="checkbox" :id="`pin-checkbox${index}`" v-model="pin.show" />
-    <label :for="`pin-checkbox${index}`">{{ pin.displayMessage }}</label><br>
-  </template>
-  
-  <div style="margin-bottom: 100px">
-    <img
-      class="champion-square"
-      v-for="participant in match.participants"
-      :src="ddragonChampSquare(participant.champion.id)"
-    >
+  <div v-if="levels[0].show" class="overview">
+    <div class="blue">
+      <div v-for="participant in Object.values(match.participants).slice(0, 5)">
+        <img class="champion-square" :src="ddragonChampSquare(participant.champion.id)">
+        <div class="text">
+          {{ participant.summonerName }}<br>
+          <span>{{ participant.champion.name }}</span>
+        </div>
+        <div>{{ `${participant.kills}/${participant.deaths}/${participant.assists}` }}</div>
+      </div>
+    </div>
+    <div class="red">
+      <div v-for="participant in Object.values(match.participants).slice(5)">
+        <img class="champion-square" :src="ddragonChampSquare(participant.champion.id)">
+        <div class="text">
+          {{ participant.summonerName }}<br>
+          <span>{{ participant.champion.name }}</span>
+        </div>
+        <div>{{ `${participant.kills}/${participant.deaths}/${participant.assists}` }}</div>
+      </div>
+    </div>
   </div>
+
+  <div class="pin-control" v-if="levels[0].show">
+    <div class="switch" v-for="(pin, index) in pins">
+      <label class="form-switch">
+        <input type="checkbox" v-model="pin.show">
+        <i></i>
+        {{ pin.displayMessage }}
+      </label>
+    </div>
+  </div>
+  
 
   <div class="timeline">
     <div :style="levels[0].style">
@@ -725,14 +743,57 @@ function hidePreview () {
 img {
   width : 100%;
 }
-img.champion-square {
-  width: 100px;
+.overview {
+  width: 700px;
+  height: 270px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 20px;
+  position: relative;
+  margin: 20px 0 100px 50px;
+  background: linear-gradient(to right, #0000ff25, #ff000025);
+  border-radius: 10px;
+}
+.overview .blue {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+.overview .red {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  
+}
+.overview .blue > div,
+.overview .red  > div {
+  margin: 5px;
+  display: flex;
+  gap: 20px;
+}
+.overview .red  > div  {
+  flex-direction: row-reverse;
+}
+.overview .blue > div > div.text,
+.overview .red  > div > div.text {
+  flex: 1;
+}
+.overview .red  > div > div.text {
+  text-align: end;
+}
+.overview .blue > div > div.text >span,
+.overview .red  > div > div.text >span {
+  font-size: 15px;
+  color: #999;
+}
+.overview img.champion-square {
+  align-self: flex-start;
+  width: 40px;
   border-radius:50%;
 }
 .timeline {
   position: relative;
   transform: rotateX(340deg) rotateY(335deg);
-  height: 1500px;
+  height: 1000px;
   transform-style: preserve-3d;
 }
 .map {
@@ -946,4 +1007,63 @@ img.monster-icon {
   border-color: #eee0;
   opacity: 0;
 }
+
+
+.pin-control {
+  position: absolute;
+  top: 170px;
+  left: 800px;
+}
+.switch {
+  font-family: 'Share Tech Mono', monospace;
+  margin: 20px 0 20px 20px;
+}
+.form-switch {
+  display: inline-block;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.form-switch i {
+  position: relative;
+  display: inline-block;
+  margin-right: .5rem;
+  width: 46px;
+  height: 26px;
+  background-color: #e6e6e6;
+  border-radius: 23px;
+  vertical-align: text-bottom;
+  transition: all 0.3s linear;
+}
+.form-switch i::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 42px;
+  height: 22px;
+  background-color: #fff;
+  border-radius: 11px;
+  transform: translate3d(2px, 2px, 0) scale3d(1, 1, 1);
+  transition: all 0.25s linear;
+}
+.form-switch i::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  background-color: #fff;
+  border-radius: 11px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.24);
+  transform: translate3d(2px, 2px, 0);
+  transition: all 0.2s ease-in-out;
+}
+.form-switch:active i::after {
+  width: 28px;
+  transform: translate3d(2px, 2px, 0);
+}
+.form-switch:active input:checked + i::after { transform: translate3d(16px, 2px, 0); }
+.form-switch input { display: none; }
+.form-switch input:checked + i { background-color: #B3944C; }
+.form-switch input:checked + i::before { transform: translate3d(18px, 2px, 0) scale3d(0, 0, 0); }
+.form-switch input:checked + i::after { transform: translate3d(22px, 2px, 0); }
 </style>
