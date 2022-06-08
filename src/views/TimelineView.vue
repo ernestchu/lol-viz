@@ -47,10 +47,10 @@ fetch(ddragonVersions)
 
     Promise.all([
       fetch(ddragonChampions),
-      fetch(`${proxyHost}${matchStatsURI}`),
-      /* fetch('/sample-data/NA1_4309929537.json'), */
-      fetch(`${proxyHost}${timelineURI}`)
-      /* fetch(`/sample-data/timeline.json`) */
+      /* fetch(`${proxyHost}${matchStatsURI}`), */
+      fetch('/sample-data/NA1_4309929537.json'),
+      /* fetch(`${proxyHost}${timelineURI}`) */
+      fetch(`/sample-data/timeline.json`)
     ]).then(res => Promise.all([ res[0].json(), res[1].json(), res[2].json() ]))
       .then(dataArray => {
         /* ########### champion info ########## */
