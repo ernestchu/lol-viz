@@ -169,7 +169,9 @@ function visualization(gameList, champList){
       .call(d3.axisBottom(x));
     var dots = svg.selectAll("circle")
       .data(gameList)
-      .enter().append("circle")
+      .enter().append("a")
+      .attr("xlink:href", function(d){return "https://www.ernestchu.org/lol-vis/timeline/" + d.ID})
+      .append("circle")
       .attr("class", "dot")
       .attr("r", 15)
       .attr("cx", function(d) {
