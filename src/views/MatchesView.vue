@@ -96,22 +96,13 @@ function visualization(gameList, champList){
   const subgroups = ['wins', 'loses']
   const margin = {top: 10, right: 230, bottom: 120, left: 100},
     width = 900 - margin.left - margin.right,
-    height = 700 - margin.top - margin.bottom;
+    height = 600 - margin.top - margin.bottom;
   const svg = d3.select("#my_dataviz")
     .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
     .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
-  var tooltip = d3.select("#my_dataviz")
-    .append("div")
-    .style("opacity", 0)
-    .attr("class", "tooltip")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "10px")
 
   gameList.sort(function(a, b) {          
       if (a.name === b.name) {
@@ -127,28 +118,40 @@ function visualization(gameList, champList){
   }
   console.log(gameList);
 
+  var tooltip = d3.select("#my_dataviz")
+    .append("div")
+    .style("opacity", 0)
+    .attr("class", "tooltip")
+    .style("background-color", "black")
+    .style("border", "solid")
+    .style("border-width", "2px")
+    .style("border-radius", "5px")
+    .style("padding", "5px")
+    .style("position", "absolute")
+
   var mouseover = function() {
     tooltip
       .style("opacity", 1)
     d3.select(this)
-      .style("r", 20)
+      .style("r", 30)
       .style("stroke", "black")
   }
+
   var mousemove = function(d) {
-    let pt = d3.pointer(event, this)
-    console.log(pt)
     tooltip
-      .html("Champion: " + d.target.__data__.name +"\nKills: " + d.target.__data__.Kills + "\nDeaths: " + d.target.__data__.Deaths + "\nAssists: " + d.target.__data__.Assists + "\nDamage: " + d.target.__data__.Damage)
-      .attr('left', pt[0]+'px') //取[x]
-      .attr('top', pt[1]+'px') //取[Y]
+      .html("Champion: " + d.target.__data__.name +"<br>Kills: " + d.target.__data__.Kills + "<br>Deaths: " + d.target.__data__.Deaths + "<br>Assists: " + d.target.__data__.Assists + "<br>Damage: " + d.target.__data__.Damage)
+      .style('left', (event.pageX+30)+"px")
+      .style('top', (event.pageY-100)+"px")
   }
+
   var mouseleave = function() {
     tooltip
       .style("opacity", 0)
     d3.select(this)
-      .style("r", 10)
+      .style("r", 15)
       .style("stroke", "none")
   }
+
   gameList.forEach(object =>{
     var y = d3.scaleBand()
       .range([0, height])
@@ -168,7 +171,7 @@ function visualization(gameList, champList){
       .data(gameList)
       .enter().append("circle")
       .attr("class", "dot")
-      .attr("r", 10)
+      .attr("r", 15)
       .attr("cx", function(d) {
         return x(d.Games)
       })
