@@ -5,12 +5,10 @@ const logoURL = `${import.meta.env.BASE_URL}images/logo.png`
 </script>
 
 <template>
-  <RouterLink :to="{ name: 'home' }">
-    <div id="logo">
+    <div id="logo" @click="$router.push({ name: 'home' })">
       <img :src="logoURL">
-      <span>VISUALIZER</span>
+      <div>VISUALIZER</div>
     </div>
-  </RouterLink>
   <RouterView />
 </template>
 
@@ -53,13 +51,19 @@ a {
 
 #logo {
   position: relative;
+  width: 700px;
+}
+#logo:hover {
+  cursor: pointer;
 }
 #logo img {
   width: 300px;
 }
-#logo span{
+#logo div{
   position: absolute;
+  height: 100px;
   top: 20px;
+  left: 300px;
   padding-left: 10px;
   font-family: 'Share Tech Mono', monospace;
   font-size: 90px;
@@ -68,7 +72,7 @@ a {
   -webkit-text-fill-color: transparent;
   transform: scaleY(1.5);
 }
-#logo span a:hover, a:visited, a:link, a:active {
+#logo div a:hover, a:visited, a:link, a:active {
   text-decoration: none;
 }
 </style>

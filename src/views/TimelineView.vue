@@ -804,7 +804,7 @@ img {
 .timeline {
   position: relative;
   transform: rotateX(340deg) rotateY(335deg);
-  height: 1000px;
+  height: 2000px;
   transform-style: preserve-3d;
 }
 .map {
