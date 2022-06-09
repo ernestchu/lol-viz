@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import * as d3 from 'd3'
+import Spinner from '@/components/Spinner.vue'
 
 const challengerLogoURL = `${import.meta.env.BASE_URL}images/challenger-2022.png`
 const challengerLeague = reactive({})
@@ -10,6 +11,7 @@ const showErrorMsg = ref(false)
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const targetURI = '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5'
 
+const treemapLoaded = ref(false)
 fetch(proxyHost + targetURI)
   .then(res => res.json())
   .then(data => {
@@ -19,6 +21,7 @@ fetch(proxyHost + targetURI)
     // })
     challengerLeague.entries.sort((a, b) => b.leaguePoints - a.leaguePoints)
     computeTreemap()
+    treemapLoaded.value = true
   })
   .catch((e) => {
     console.log(e)
@@ -259,7 +262,8 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
     </div>
   </div>
 
-  <div class="treemap" v-if="challengerLeague">
+  <Transition>
+  <div class="treemap" v-if="treemapLoaded">
     <div
       v-for="entry in challengerLeague.entries"
       :class="{ 'summoner-block': true, 'no-pointer': entry.isChosen }"
@@ -298,10 +302,18 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
       <div v-if="entry.isChosen" class="bar-chart-title"> Champion Mastery </div>
     </div>
   </div>
+  </Transition>
+
+  <Spinner class="spinner" v-if="!treemapLoaded" />
 
 </template>
 
 <style scoped>
+.spinner {
+ position: fixed;
+ top: 100px;
+ left: 200px;
+} 
 .description {
   position: relative;
   padding-left: 100px;
@@ -435,6 +447,15 @@ button {
   /* transition-delay: s; */
 }
 
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease-out;
+}
 
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
+}
 
 </style>

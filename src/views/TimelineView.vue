@@ -1,6 +1,7 @@
 <script setup>
 import { useRoute } from 'vue-router'
 import { ref, reactive, nextTick } from 'vue'
+import Spinner from '@/components/Spinner.vue'
 
 /* ddragon */
 const ddragonSRMAP = ref('')
@@ -356,7 +357,9 @@ function hidePreview () {
     </div>
   </template>
 
-  <div v-if="levels[0].show" class="overview">
+  <Transition>
+  <div v-if="levels[0].show">
+  <div class="overview">
     <div class="blue">
       <div v-for="participant in Object.values(match.participants).slice(0, 5)">
         <img class="champion-square" :src="ddragonChampSquare(participant.champion.id)">
@@ -379,7 +382,7 @@ function hidePreview () {
     </div>
   </div>
 
-  <div class="pin-control" v-if="levels[0].show">
+  <div class="pin-control">
     <div class="switch" v-for="(pin, index) in pins">
       <label class="form-switch">
         <input type="checkbox" v-model="pin.show">
@@ -717,6 +720,9 @@ function hidePreview () {
     </template>
 
   </div>
+  </div>
+  </Transition>
+  <Spinner class="spinner" v-if="!levels[0].show" />
 
   <div
     v-if="previewWindow.show"
@@ -740,6 +746,11 @@ function hidePreview () {
 </template>
 
 <style scoped>
+.spinner {
+ position: fixed;
+ top: 100px;
+ left: 200px;
+} 
 img {
   width : 100%;
 }
@@ -806,6 +817,7 @@ img {
   padding: var(--top-padding) var(--horizontal-padding) var(--bottom-padding) var(--horizontal-padding);
   border: var(--border-width) solid #eee;
   backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
   border-radius: 5px;
 }
 .map-hover:hover { /* use this to prevent still hovering when selected */
@@ -962,6 +974,17 @@ img.monster-icon {
 
 
 /* Vue Transition */
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease-out;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
 .level-1-enter-active {
   transition: transform .8s, opacity .01s;
   transition-delay: .5s;

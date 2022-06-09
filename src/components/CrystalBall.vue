@@ -36,7 +36,7 @@ if (!win) {
 }
 
 .lava {
-  -webkit-filter: blur(1px) contrast(20) blur(15px);
+  filter: blur(1px) contrast(2) blur(15px);
   position: absolute;
   left: 50%;
   top: 50%;
@@ -50,7 +50,7 @@ if (!win) {
 }
 
 .lava:before {
-  -webkit-filter: blur(8px);
+  filter: blur(8px);
   content: "";
   display: block;
   position: relative;
@@ -70,7 +70,7 @@ if (!win) {
 }
 
 .lava:after {
-  -webkit-filter: blur(5px);
+  filter: blur(5px);
   content: "";
   display: block;
   position: absolute;

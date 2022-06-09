@@ -4,6 +4,7 @@ import { ref, reactive } from 'vue'
 const { summonerId } = useRoute().params
 import * as d3 from 'd3'
 import CrystalBall from '@/components/CrystalBall.vue'
+import Spinner from '@/components/Spinner.vue'
 
 const matches = reactive([])
 const showErrorMsg = ref(false)
@@ -205,13 +206,15 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
     <div class="content">Hover on the crystal balls to explore</div>
   </div>
 
+  <Transition>
   <div class="chart" v-if="chart.done">
     <div
       class="y-axis"
       v-for="label in chart.yLabels"
       :style="{ top: chart.y(label) + 'px' }"
     >
-      <img :src="ddragonChampSquare(label)" :style="{ width: chart.y.bandwidth() + 'px', 'border-radius': '50%' }">
+      <img :src="ddragonChampSquare(label)"
+            :style="{ width: Math.min(chart.x.bandwidth(), chart.y.bandwidth()) + 'px', 'border-radius': '50%' }">
     </div>
     <div
       class="x-axis"
@@ -228,13 +231,16 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
       class="crystal"
       :style="dot.style"
       :win="dot.game.Wins"
-      :bandwidth="chart.y.bandwidth()"
+      :bandwidth="Math.min(chart.x.bandwidth(), chart.y.bandwidth())"
       @mouseenter="showPreviewWindow($event, dot.game)"
       @mousemove="updatePreviewWindow($event)"
       @mouseleave="hidePreviewWindow()"
       @click="$router.push({ name: 'timeline', params: { matchId: dot.game.ID } })"
     />
   </div>
+  </Transition>
+
+  <Spinner class="spinner" v-if="!chart.done" />
 
   <div class="preview-window" v-if="previewWindow.show" :style="previewWindow.style">
     <img :src="ddragonChampSquare(champions[previewWindow.data.championId].id)" alt="">
@@ -248,15 +254,20 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
 </template>
 
 <style scoped>
+.spinner {
+ position: fixed;
+ top: 100px;
+ left: 200px;
+} 
 .description {
   margin: 30px 0 130px 30px;
   font-family: 'Share Tech Mono', monospace;
 }
 .description .title {
-  font-size: 50px;
+  font-size: 35px;
 }
 .description .content {
-  font-size: 35px;
+  font-size: 20px;
 }
 
 button {
@@ -292,6 +303,7 @@ button {
   height: 100px;
   background-color: #fff1;
   backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   z-index: 999;
 }
 .preview-window img {
@@ -329,6 +341,17 @@ button {
   width: 100%;
   height: 100%;
   border: 3px solid #B3944C;
+}
+
+.v-enter-active,
+.v-leave-active {
+  transition: all 0.5s ease-out;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
 </style>
