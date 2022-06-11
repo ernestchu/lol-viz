@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
-    "dev-pages": "vite --base=/lol-vis/",
+    "dev-pages": "vite --base=/lol-viz/",
     "build": "vite build",
-    "build-pages": "vite build --base=/lol-vis/",
+    "build-pages": "vite build --base=/lol-viz/",
     "preview": "vite preview --port 5050",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
