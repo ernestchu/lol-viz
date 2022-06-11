@@ -1,5 +1,5 @@
 # LoLViZ.
-A League of Legends visualizer that help the pro players in the challenger league exploring their matches.
+A League of Legends visualizer that helps the pro players in the challenger league exploring their matches.
 
 ## Project Setup
 Install [yarn](https://yarnpkg.com) and install the packages
