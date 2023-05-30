@@ -316,7 +316,7 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
 } 
 .description {
   position: relative;
-  padding-left: 100px;
+  padding-left: 30px;
   margin-bottom: 30px;
 }
 .description > img {
@@ -325,7 +325,7 @@ fetch('https://ddragon.leagueoflegends.com/api/versions.json')
 .description > div {
   position: absolute;
   top: 35px;
-  left: 280px;
+  left: 220px;
   display: inline-block;
   font-size: 35px;
   font-family: 'Share Tech Mono', monospace;
