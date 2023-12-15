@@ -10,6 +10,7 @@ const showErrorMsg = ref(false)
 
 const proxyHost = import.meta.env.VITE_PROXY_HOST
 const targetURI = '/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5'
+const summonersURI = '/lol/summoner/v4/summoners'
 
 const treemapLoaded = ref(false)
 fetch(proxyHost + targetURI)
@@ -116,61 +117,69 @@ function zoomIn (entry) {
   entry.style['background-color'] = RGBAToHexA(entry.style['background-color']).slice(0, -2)
   entry.style['--link-color'] = '#4a506b';
 
-
-  // get champion mastry info
-  fetch(`${proxyHost}/lol/champion-mastery/v4/champion-masteries/by-summoner/${entry.summonerId}`)
+  fetch(`${proxyHost}${summonersURI}/${entry.summonerId}`)
     .then(res => res.json())
     .then(data => {
-      data = data.slice(0, 15)
+      // get champion mastry info
+      fetch(`${proxyHost}/lol/champion-mastery/v4/champion-masteries/by-puuid/${data.puuid}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log(data)
+          data = data.slice(0, 15)
 
-      // uncomment to examine the data
-      // data.forEach(champ => { 
-      // console.log(champ.championPoints) 
-      // console.log(champions[champ.championId])
-      // })
+          // uncomment to examine the data
+          // data.forEach(champ => { 
+          // console.log(champ.championPoints) 
+          // console.log(champions[champ.championId])
+          // })
 
-      const x = d3.scaleLinear()
-        .domain([
-          0,
-          d3.max(data.map(d => d.championPoints))
-        ])
-        .range([0, window.innerWidth * 0.80])
-      const y = d3.scaleBand()
-        .domain(data.map(d => d.championId))
-        .range([0, 600])
-        .padding(.1)
+          const x = d3.scaleLinear()
+            .domain([
+              0,
+              d3.max(data.map(d => d.championPoints))
+            ])
+            .range([0, window.innerWidth * 0.80])
+          const y = d3.scaleBand()
+            .domain(data.map(d => d.championId))
+            .range([0, 600])
+            .padding(.1)
 
 
 
-      const masteryBars = []
-      data.forEach(d => {
-        masteryBars.push({
-          championId: d.championId,
-          championPoints: d.championPoints,
-          style: {
-            left:  y.bandwidth() * 1.3 + '0px', // save space for the icons
-            top: y(d.championId) + 'px',
-            width: '0px',
-            height: y.bandwidth() + 'px',
-            'background-color': 'rgba(255, 255, 255, .5)'
-          },
-          imgStyle: {
-            left: -y.bandwidth() * 1.3 + 'px',
-            width: y.bandwidth() + 'px',
-            opacity: '0'
-          }
+          const masteryBars = []
+          data.forEach(d => {
+            masteryBars.push({
+              championId: d.championId,
+              championPoints: d.championPoints,
+              style: {
+                left:  y.bandwidth() * 1.3 + '0px', // save space for the icons
+                top: y(d.championId) + 'px',
+                width: '0px',
+                height: y.bandwidth() + 'px',
+                'background-color': 'rgba(255, 255, 255, .5)'
+              },
+              imgStyle: {
+                left: -y.bandwidth() * 1.3 + 'px',
+                width: y.bandwidth() + 'px',
+                opacity: '0'
+              }
+            })
+          })
+          entry.masteryBars = masteryBars
+
+          entry.masteryBars.forEach((bar, index) => {
+            setTimeout(() => {
+              bar.style.width = x(bar.championPoints) + 'px'
+              bar.imgStyle.opacity = 1
+            }, 40 * index)
+            setTimeout(() => bar.style['--white-space'] = 'nowrap', entry.masteryBars.length * 40)
+          })
+
         })
-      })
-      entry.masteryBars = masteryBars
-
-      entry.masteryBars.forEach((bar, index) => {
-        setTimeout(() => {
-          bar.style.width = x(bar.championPoints) + 'px'
-          bar.imgStyle.opacity = 1
-        }, 40 * index)
-        setTimeout(() => bar.style['--white-space'] = 'nowrap', entry.masteryBars.length * 40)
-      })
-
+    })
+    .catch((e) => {
+      console.error(e)
+      showErrorMsg.value = true
     })
 }
 
